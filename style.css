@@ -300,3 +300,26 @@ opacity:1;
 color:transparent !important;
 text-shadow:none !important;
 }
+
+@media (max-width: 500px){
+
+    #board{
+        width: calc(100vw - 40px);
+        height: calc(100vw - 40px);
+        max-width: 420px;
+        max-height: 420px;
+    }
+
+    .top-bar{
+        width: calc(100vw - 40px);
+        max-width: 420px;
+    }
+
+    .tile{
+        font-size: 9vw;
+    }
+
+    .moving-tile{
+        font-size: 9vw;
+    }
+}
