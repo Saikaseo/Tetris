@@ -323,3 +323,39 @@ text-shadow:none !important;
         font-size: 9vw;
     }
 }
+
+/* スマホ対応 */
+@media (max-width: 500px){
+
+    #board{
+        width: calc(100vw - 20px);
+        height: calc(100vw - 20px);
+        max-width: 420px;
+        max-height: 420px;
+        box-sizing: border-box;
+
+        /* 盤面上のスワイプをページスクロールにしない */
+        touch-action: none;
+    }
+
+    .top-bar{
+        width: calc(100vw - 20px);
+        max-width: 420px;
+        box-sizing: border-box;
+    }
+
+    .tile{
+        font-size: 9vw;
+    }
+
+    .moving-tile{
+        font-size: 9vw;
+    }
+}
+
+/* 横方向にはみ出さないようにする */
+html,
+body{
+    max-width: 100%;
+    overflow-x: hidden;
+}
