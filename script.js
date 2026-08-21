@@ -5,6 +5,19 @@
 const COLS = 10;
 const ROWS = 20;
 
+/* =========================================================
+   落下速度設定
+========================================================= */
+
+/*
+ * 初期値
+ *
+ * 数字が大きいほど遅い
+ *
+ * 2000 = 2秒
+ */
+
+let dropSpeed = 2000;
 
 /* =========================================================
    ゲーム状態
@@ -451,6 +464,10 @@ function spawnPiece() {
     drawNext();
 
 
+    /*
+     * ゲームオーバー判定
+     */
+
     if (
         collision(
             current.x,
@@ -461,7 +478,19 @@ function spawnPiece() {
 
         endGame();
 
+        return;
+
     }
+
+
+    /*
+     * ★重要
+     *
+     * ミノが登場した瞬間を
+     * 「一手戻す」の基準として保存
+     */
+
+    saveHistory();
 
 }
 
@@ -473,55 +502,55 @@ function spawnPiece() {
 function drawNext() {
 
     const next =
-        document.getElementById("next");
+        document.getElementById(
+            "next"
+        );
 
+
+    /*
+     * 中身を完全に消す
+     */
 
     next.innerHTML = "";
-
-
-    for (
-        let i = 0;
-        i < 16;
-        i++
-    ) {
-
-        const cell =
-            document.createElement("div");
-
-
-        cell.className =
-            "next-cell";
-
-
-        next.appendChild(cell);
-
-    }
 
 
     if (!nextPiece)
         return;
 
 
+    /*
+     * ミノを表示する専用要素
+     */
+
+    const piece =
+        document.createElement(
+            "div"
+        );
+
+
+    piece.className =
+        "preview-piece";
+
+
+    piece.classList.add(
+        nextPiece.color
+    );
+
+
+    /*
+     * ミノの形をCSS Gridとして表示
+     */
+
     const shape =
         nextPiece.shape;
 
 
-    const offsetX =
-        Math.floor(
-            (
-                4 -
-                shape[0].length
-            ) / 2
-        );
+    piece.style.gridTemplateColumns =
+        `repeat(${shape[0].length}, 1fr)`;
 
 
-    const offsetY =
-        Math.floor(
-            (
-                4 -
-                shape.length
-            ) / 2
-        );
+    piece.style.gridTemplateRows =
+        `repeat(${shape.length}, 1fr)`;
 
 
     for (
@@ -540,40 +569,33 @@ function drawNext() {
                 continue;
 
 
-            const px =
-                offsetX + x;
-
-            const py =
-                offsetY + y;
-
-
-            if (
-                px >= 0 &&
-                px < 4 &&
-                py >= 0 &&
-                py < 4
-            ) {
-
-                const index =
-                    py * 4 + px;
+            const block =
+                document.createElement(
+                    "div"
+                );
 
 
-                next.children[index]
-                    .classList.add(
-                        "filled"
-                    );
+            block.className =
+                "preview-block";
 
 
-                next.children[index]
-                    .classList.add(
-                        nextPiece.color
-                    );
+            block.classList.add(
+                nextPiece.color
+            );
 
-            }
+
+            piece.appendChild(
+                block
+            );
 
         }
 
     }
+
+
+    next.appendChild(
+        piece
+    );
 
 }
 
@@ -585,59 +607,59 @@ function drawNext() {
 function drawHold() {
 
     const hold =
-        document.getElementById("hold");
+        document.getElementById(
+            "hold"
+        );
 
 
     if (!hold)
         return;
 
 
+    /*
+     * 中身を完全に消す
+     */
+
     hold.innerHTML = "";
-
-
-    for (
-        let i = 0;
-        i < 16;
-        i++
-    ) {
-
-        const cell =
-            document.createElement("div");
-
-
-        cell.className =
-            "next-cell";
-
-
-        hold.appendChild(cell);
-
-    }
 
 
     if (!holdPiece)
         return;
 
 
+    /*
+     * ミノ専用の表示要素
+     */
+
+    const piece =
+        document.createElement(
+            "div"
+        );
+
+
+    piece.className =
+        "preview-piece";
+
+
+    piece.classList.add(
+        holdPiece.color
+    );
+
+
+    /*
+     * ミノの形
+     */
+
     const shape =
         holdPiece.shape;
 
 
-    const offsetX =
-        Math.floor(
-            (
-                4 -
-                shape[0].length
-            ) / 2
-        );
+    piece.style.gridTemplateColumns =
+        `repeat(${shape[0].length}, 1fr)`;
 
 
-    const offsetY =
-        Math.floor(
-            (
-                4 -
-                shape.length
-            ) / 2
-        );
+    piece.style.gridTemplateRows =
+        `repeat(${shape.length}, 1fr)`;
 
 
     for (
@@ -656,40 +678,33 @@ function drawHold() {
                 continue;
 
 
-            const px =
-                offsetX + x;
-
-            const py =
-                offsetY + y;
-
-
-            if (
-                px >= 0 &&
-                px < 4 &&
-                py >= 0 &&
-                py < 4
-            ) {
-
-                const index =
-                    py * 4 + px;
+            const block =
+                document.createElement(
+                    "div"
+                );
 
 
-                hold.children[index]
-                    .classList.add(
-                        "filled"
-                    );
+            block.className =
+                "preview-block";
 
 
-                hold.children[index]
-                    .classList.add(
-                        holdPiece.color
-                    );
+            block.classList.add(
+                holdPiece.color
+            );
 
-            }
+
+            piece.appendChild(
+                block
+            );
 
         }
 
     }
+
+
+    hold.appendChild(
+        piece
+    );
 
 }
 
@@ -1112,12 +1127,6 @@ function rotatePiece() {
 
 function lockPiece() {
 
-    /*
-     * 固定前の状態を保存
-     */
-
-    saveHistory();
-
 
     for (
         let y = 0;
@@ -1312,12 +1321,7 @@ function updateInfo() {
 
 function getDropSpeed() {
 
-    /*
-     * レベルが上がっても
-     * 落下速度は変わらない
-     */
-
-    return 800;
+    return dropSpeed;
 
 }
 
@@ -1343,12 +1347,26 @@ function restartTimer() {
 
 
 /* =========================================================
-   一手戻す：保存
+   一手戻す用の履歴保存
 ========================================================= */
+
+/*
+ * 「一手」とは
+ *
+ * 現在のミノが設置されること
+ *
+ * とする。
+ *
+ * そのため、ミノが登場した時点の状態を保存する。
+ */
 
 function saveHistory() {
 
     history.push({
+
+        /*
+         * 設置される前の盤面
+         */
 
         board:
             board.map(
@@ -1356,17 +1374,33 @@ function saveHistory() {
             ),
 
 
+        /*
+         * スコア
+         */
+
         score:
             score,
 
+
+        /*
+         * ライン数
+         */
 
         lines:
             lines,
 
 
+        /*
+         * レベル
+         */
+
         level:
             level,
 
+
+        /*
+         * 今から操作するミノ
+         */
 
         current:
             current
@@ -1375,16 +1409,13 @@ function saveHistory() {
                     color:
                         current.color,
 
-
                     shape:
                         current.shape.map(
                             row => [...row]
                         ),
 
-
                     x:
                         current.x,
-
 
                     y:
                         current.y
@@ -1393,6 +1424,10 @@ function saveHistory() {
                 : null,
 
 
+        /*
+         * NEXT
+         */
+
         nextPiece:
             nextPiece
                 ? {
@@ -1400,16 +1435,14 @@ function saveHistory() {
                     color:
                         nextPiece.color,
 
-
                     shape:
                         nextPiece.shape.map(
-                            row => [...row]
+                            row => [...row
+                            ]
                         ),
-
 
                     x:
                         nextPiece.x,
-
 
                     y:
                         nextPiece.y
@@ -1418,6 +1451,10 @@ function saveHistory() {
                 : null,
 
 
+        /*
+         * HOLD
+         */
+
         holdPiece:
             holdPiece
                 ? {
@@ -1425,16 +1462,13 @@ function saveHistory() {
                     color:
                         holdPiece.color,
 
-
                     shape:
                         holdPiece.shape.map(
                             row => [...row]
                         ),
 
-
                     x:
                         holdPiece.x,
-
 
                     y:
                         holdPiece.y
@@ -1448,6 +1482,10 @@ function saveHistory() {
 
     });
 
+
+    /*
+     * 今回は1手だけ保存
+     */
 
     if (
         history.length >
@@ -1588,6 +1626,8 @@ function undoMove() {
     drawHold();
 
     drawNext();
+
+    restartTimer();
 
 }
 
@@ -2024,6 +2064,56 @@ document.getElementById("board")
         }
     );
 
+/* =========================================================
+   落下速度スライダー
+========================================================= */
+
+const speedSlider =
+    document.getElementById(
+        "speed-slider"
+    );
+
+const speedValue =
+    document.getElementById(
+        "speed-value"
+    );
+
+
+speedSlider.addEventListener(
+    "input",
+    function() {
+
+        /*
+         * スライダーの値を取得
+         */
+
+        dropSpeed =
+            Number(
+                speedSlider.value
+            );
+
+
+        /*
+         * 画面表示
+         */
+
+        speedValue.textContent =
+            dropSpeed + " ms";
+
+
+        /*
+         * ゲーム中なら
+         * 新しい速度をすぐ反映
+         */
+
+        if (!gameOver) {
+
+            restartTimer();
+
+        }
+
+    }
+);
 
 /* =========================================================
    リスタート

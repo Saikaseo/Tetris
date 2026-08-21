@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<title>テトリス</title>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<h1>TETRIS</h1>
+
+<div id="game-info">
+    <div class="info-box">
+        SCORE<br>
+        <span id="score">0</span>
+    </div>
+
+    <div class="info-box">
+        LEVEL<br>
+        <span id="level">1</span>
+    </div>
+
+    <div class="info-box">
+        LINES<br>
+        <span id="lines">0</span>
+    </div>
+</div>
+
+<div id="game-container">
+
+
+    <!-- 左側 -->
+
+    <div id="left-panel">
+
+        <!-- HOLD -->
+
+        <div id="hold-panel">
+
+            <div class="piece-title">
+                HOLD
+            </div>
+
+            <div id="hold"></div>
+
+        </div>
+
+
+        <!-- PC操作 -->
+
+        <div id="pc-controls">
+
+            <div class="control-title">
+                操作方法
+            </div>
+
+            <div class="control-row">
+                <span>← →</span>
+                <span>左右移動</span>
+            </div>
+
+            <div class="control-row">
+                <span>↓</span>
+                <span>下移動</span>
+            </div>
+
+            <div class="control-row">
+                <span>↑</span>
+                <span>回転</span>
+            </div>
+
+            <div class="control-row">
+                <span>Space</span>
+                <span>一時停止</span>
+            </div>
+
+            <div class="control-row">
+                <span>Z</span>
+                <span>一手戻す</span>
+            </div>
+
+            <div class="control-row">
+                <span>C</span>
+                <span>HOLD</span>
+            </div>
+
+            <div class="control-row">
+                <span>R</span>
+                <span>リスタート</span>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- 中央：盤面 -->
+
+    <div id="board"></div>
+
+
+    <!-- 右側：NEXT -->
+
+    <div id="next-panel">
+
+        <div class="piece-title">
+            NEXT
+        </div>
+
+        <div id="next"></div>
+
+    </div>
+
+
+</div>
+
+<!-- スマホ操作 -->
+
+<div id="buttons">
+
+    <button id="left">←</button>
+
+    <button id="rotate">↻</button>
+
+    <button id="right">→</button>
+
+    <button id="down">↓</button>
+
+    <button id="hold-button">HOLD</button>
+
+    <button id="undo">↶</button>
+
+    <button id="pause">Ⅱ</button>
+
+</div>
+
+<!-- 落下速度設定 -->
+
+<div id="speed-control">
+
+    <span>落下速度</span>
+
+    <input
+        id="speed-slider"
+        type="range"
+        min="200"
+        max="3000"
+        step="100"
+        value="2000"
+    >
+
+    <span id="speed-value">
+        2000 ms
+    </span>
+
+</div>
+
+<button id="restart">RESTART</button>
+
+
+<!-- ゲームオーバー画面 -->
+
+<div id="game-over">
+
+    <div id="game-over-box">
+
+        <div id="game-over-title">
+            GAME OVER
+        </div>
+
+        <div id="final-score">
+            SCORE: <span id="final-score-number">0</span>
+        </div>
+
+        <button id="game-over-restart">
+            もう一度遊ぶ
+        </button>
+
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
