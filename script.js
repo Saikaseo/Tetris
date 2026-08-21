@@ -57,23 +57,13 @@ let nextPiece = null;
 let holdPiece = null;
 
 
-/*
- * 現在のミノを
- * すでにHOLDしたか
- *
- * 1個のミノにつき1回だけHOLD可能
- */
-
-let holdUsed = false;
-
-
 /* =========================================================
    一手戻す
 ========================================================= */
 
 let history = [];
 
-const MAX_HISTORY = 1;
+const MAX_HISTORY = 2;
 
 
 /* =========================================================
@@ -441,14 +431,6 @@ function spawnPiece() {
         randomPiece();
 
 
-    /*
-     * 新しいミノなので
-     * HOLDを再び使用可能にする
-     */
-
-    holdUsed = false;
-
-
     current.x =
         Math.floor(
             (
@@ -618,38 +600,29 @@ function drawHold() {
 
 function holdCurrentPiece() {
 
-    if (gameOver || paused)
+    if (gameOver)
         return;
 
 
     /*
-     * 1個のミノにつき1回だけ
-     */
-
-    if (holdUsed)
-        return;
-
-
-    holdUsed = true;
-
-
-    /*
-     * 初めてHOLDする場合
+     * HOLDに何も入っていない場合
      */
 
     if (!holdPiece) {
+
+        /*
+         * 現在のミノをHOLDへ
+         */
 
         holdPiece = {
 
             color:
                 current.color,
 
-
             shape:
                 current.shape.map(
                     row => [...row]
                 ),
-
 
             x: 0,
 
@@ -659,21 +632,25 @@ function holdCurrentPiece() {
 
 
         /*
-         * NEXTから新しいミノ
+         * NEXTのミノを現在のミノにする
          */
 
-        current =
-            nextPiece;
+        current = nextPiece;
 
 
-        nextPiece =
-            randomPiece();
+        /*
+         * NEXTを新しく作る
+         */
+
+        nextPiece = randomPiece();
 
     }
 
 
     /*
-     * すでにHOLDがある場合
+     * HOLDにすでにミノがある場合
+     *
+     * 現在のミノとHOLDを交換
      */
 
     else {
@@ -683,12 +660,10 @@ function holdCurrentPiece() {
             color:
                 current.color,
 
-
             shape:
                 current.shape.map(
                     row => [...row]
                 ),
-
 
             x: 0,
 
@@ -702,12 +677,10 @@ function holdCurrentPiece() {
             color:
                 holdPiece.color,
 
-
             shape:
                 holdPiece.shape.map(
                     row => [...row]
                 ),
-
 
             x: 0,
 
@@ -716,14 +689,13 @@ function holdCurrentPiece() {
         };
 
 
-        holdPiece =
-            temp;
+        holdPiece = temp;
 
     }
 
 
     /*
-     * 中央に配置
+     * 現在のミノを中央に配置
      */
 
     current.x =
@@ -738,11 +710,22 @@ function holdCurrentPiece() {
     current.y = 0;
 
 
+    /*
+     * 画面更新
+     */
+
     drawHold();
 
     drawNext();
 
     drawBoard();
+
+
+    /*
+     * 自動保存
+     */
+
+    saveGame();
 
 }
 
@@ -839,11 +822,8 @@ function moveHorizontal(
     direction
 ) {
 
-    if (
-        gameOver ||
-        paused
-    )
-        return;
+    if (gameOver)
+    return;
 
 
     const newX =
@@ -860,10 +840,12 @@ function moveHorizontal(
     ) {
 
         current.x =
-            newX;
+    newX;
 
 
-        drawBoard();
+drawBoard();
+
+saveGame();
 
     }
 
@@ -876,11 +858,8 @@ function moveHorizontal(
 
 function moveDown() {
 
-    if (
-        gameOver ||
-        paused
-    )
-        return;
+    if (gameOver)
+    return;
 
 
     if (
@@ -893,7 +872,9 @@ function moveDown() {
 
         current.y++;
 
-        drawBoard();
+drawBoard();
+
+saveGame();
 
     } else {
 
@@ -910,11 +891,8 @@ function moveDown() {
 
 function rotatePiece() {
 
-    if (
-        gameOver ||
-        paused
-    )
-        return;
+    if (gameOver)
+    return;
 
 
     const oldShape =
@@ -969,12 +947,14 @@ function rotatePiece() {
     ) {
 
         current.shape =
-            newShape;
+    newShape;
 
 
-        drawBoard();
+drawBoard();
 
-        return;
+saveGame();
+
+return;
 
     }
 
@@ -1010,12 +990,14 @@ function rotatePiece() {
 
 
             current.shape =
-                newShape;
+    newShape;
 
 
-            drawBoard();
+drawBoard();
 
-            return;
+saveGame();
+
+return;
 
         }
 
@@ -1076,14 +1058,6 @@ function lockPiece() {
 
 
     spawnPiece();
-
-
-    /*
-     * 新しいミノなので
-     * HOLD可能
-     */
-
-    holdUsed = false;
 
 
     drawBoard();
@@ -1408,48 +1382,29 @@ function saveHistory() {
 
 function undoMove() {
 
-    if (
-        gameOver ||
-        paused
-    )
+    if (gameOver)
         return;
 
 
     /*
-     * 現在のミノが登場した直後の履歴と、
-     * その1つ前の履歴が必要
-     *
-     * 例：
-     *
-     * Aミノ登場
-     * ↓
-     * Aミノ設置
-     * ↓
-     * Bミノ登場
-     *
-     * この状態なら
-     *
-     * history = [A, B]
-     *
-     * 一手戻すとAを復元する。
+     * 現在のミノが登場した直後の状態を
+     * 1つ前の履歴として復元する
      */
 
-    if (
-        history.length < 2
-    )
+    if (history.length < 2)
         return;
 
 
     /*
-     * 現在のミノBの履歴を削除
+     * 現在のミノの履歴を削除
      */
 
     history.pop();
 
 
     /*
-     * 1つ前のミノAの
-     * 登場直後の状態を取得
+     * 1つ前のミノの
+     * 登場直後の状態
      */
 
     const state =
@@ -1542,8 +1497,11 @@ function undoMove() {
             : null;
 
 
-    holdUsed =
-        state.holdUsed;
+    /*
+     * HOLD回数制限は使用しない
+     */
+
+    holdUsed = false;
 
 
     updateInfo();
@@ -1556,8 +1514,478 @@ function undoMove() {
 
     restartTimer();
 
+
+    /*
+     * 一手戻した状態を保存
+     */
+
+    saveGame();
+
 }
 
+/* =========================================================
+   自動保存
+========================================================= */
+
+const SAVE_KEY =
+    "tetris_auto_save";
+
+
+function saveGame() {
+
+    try {
+
+        const saveData = {
+
+            board:
+                board.map(
+                    row => [...row]
+                ),
+
+
+            score:
+                score,
+
+
+            lines:
+                lines,
+
+
+            level:
+                level,
+
+
+            gameOver:
+                gameOver,
+
+
+            paused:
+                paused,
+
+
+            dropSpeed:
+                dropSpeed,
+
+
+            current:
+                current
+                    ? {
+
+                        color:
+                            current.color,
+
+                        shape:
+                            current.shape.map(
+                                row => [...row]
+                            ),
+
+                        x:
+                            current.x,
+
+                        y:
+                            current.y
+
+                    }
+                    : null,
+
+
+            nextPiece:
+                nextPiece
+                    ? {
+
+                        color:
+                            nextPiece.color,
+
+                        shape:
+                            nextPiece.shape.map(
+                                row => [...row]
+                            ),
+
+                        x:
+                            nextPiece.x,
+
+                        y:
+                            nextPiece.y
+
+                    }
+                    : null,
+
+
+            holdPiece:
+                holdPiece
+                    ? {
+
+                        color:
+                            holdPiece.color,
+
+                        shape:
+                            holdPiece.shape.map(
+                                row => [...row]
+                            ),
+
+                        x:
+                            holdPiece.x,
+
+                        y:
+                            holdPiece.y
+
+                    }
+                    : null,
+
+
+            holdUsed:
+                holdUsed,
+
+
+            history:
+                history.map(
+                    state => ({
+
+                        board:
+                            state.board.map(
+                                row => [...row]
+                            ),
+
+                        score:
+                            state.score,
+
+                        lines:
+                            state.lines,
+
+                        level:
+                            state.level,
+
+                        current:
+                            state.current
+                                ? {
+
+                                    color:
+                                        state.current.color,
+
+                                    shape:
+                                        state.current.shape.map(
+                                            row => [...row]
+                                        ),
+
+                                    x:
+                                        state.current.x,
+
+                                    y:
+                                        state.current.y
+
+                                }
+                                : null,
+
+                        nextPiece:
+                            state.nextPiece
+                                ? {
+
+                                    color:
+                                        state.nextPiece.color,
+
+                                    shape:
+                                        state.nextPiece.shape.map(
+                                            row => [...row]
+                                        ),
+
+                                    x:
+                                        state.nextPiece.x,
+
+                                    y:
+                                        state.nextPiece.y
+
+                                }
+                                : null,
+
+                        holdPiece:
+                            state.holdPiece
+                                ? {
+
+                                    color:
+                                        state.holdPiece.color,
+
+                                    shape:
+                                        state.holdPiece.shape.map(
+                                            row => [...row]
+                                        ),
+
+                                    x:
+                                        state.holdPiece.x,
+
+                                    y:
+                                        state.holdPiece.y
+
+                                }
+                                : null,
+
+                        holdUsed:
+                            state.holdUsed
+
+                    })
+                )
+
+        };
+
+
+        localStorage.setItem(
+            SAVE_KEY,
+            JSON.stringify(saveData)
+        );
+
+    } catch (error) {
+
+        console.error(
+            "自動保存に失敗しました:",
+            error
+        );
+
+    }
+
+}
+
+/* =========================================================
+   自動保存データ読み込み
+========================================================= */
+
+function loadGame() {
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                SAVE_KEY
+            );
+
+
+        if (!saved)
+            return false;
+
+
+        const data =
+            JSON.parse(saved);
+
+
+        if (
+            !data ||
+            !data.board ||
+            !data.current
+        ) {
+
+            return false;
+
+        }
+
+
+        board =
+            data.board.map(
+                row => [...row]
+            );
+
+
+        score =
+            data.score || 0;
+
+
+        lines =
+            data.lines || 0;
+
+
+        level =
+            data.level || 1;
+
+
+        gameOver =
+            data.gameOver || false;
+
+
+        paused =
+            data.paused || false;
+
+
+        dropSpeed =
+            data.dropSpeed || 2000;
+
+
+        current =
+            data.current
+                ? {
+
+                    color:
+                        data.current.color,
+
+                    shape:
+                        data.current.shape.map(
+                            row => [...row]
+                        ),
+
+                    x:
+                        data.current.x,
+
+                    y:
+                        data.current.y
+
+                }
+                : null;
+
+
+        nextPiece =
+            data.nextPiece
+                ? {
+
+                    color:
+                        data.nextPiece.color,
+
+                    shape:
+                        data.nextPiece.shape.map(
+                            row => [...row]
+                        ),
+
+                    x:
+                        data.nextPiece.x,
+
+                    y:
+                        data.nextPiece.y
+
+                }
+                : null;
+
+
+        holdPiece =
+            data.holdPiece
+                ? {
+
+                    color:
+                        data.holdPiece.color,
+
+                    shape:
+                        data.holdPiece.shape.map(
+                            row => [...row]
+                        ),
+
+                    x:
+                        data.holdPiece.x,
+
+                    y:
+                        data.holdPiece.y
+
+                }
+                : null;
+
+
+        holdUsed =
+            data.holdUsed || false;
+
+
+        history =
+            Array.isArray(data.history)
+                ? data.history
+                : [];
+
+
+        /*
+         * 画面更新
+         */
+
+        updateInfo();
+
+        drawBoard();
+
+        drawHold();
+
+        drawNext();
+
+
+        /*
+         * スライダーの表示も復元
+         */
+
+        const slider =
+            document.getElementById(
+                "speed-slider"
+            );
+
+        const value =
+            document.getElementById(
+                "speed-value"
+            );
+
+
+        if (slider) {
+
+            slider.value =
+                dropSpeed;
+
+        }
+
+
+        if (value) {
+
+            value.textContent =
+                dropSpeed + " ms";
+
+        }
+
+
+        /*
+         * 一時停止ボタンの表示
+         */
+
+        const pauseButton =
+            document.getElementById(
+                "pause"
+            );
+
+
+        if (pauseButton) {
+
+            pauseButton.textContent =
+                paused
+                    ? "▶"
+                    : "Ⅱ";
+
+        }
+
+
+        /*
+         * ゲームオーバーなら
+         * ゲームオーバー画面も復元
+         */
+
+        if (gameOver) {
+
+            document.getElementById(
+                "final-score-number"
+            ).textContent =
+                score;
+
+
+            document.getElementById(
+                "game-over"
+            ).style.display =
+                "flex";
+
+        }
+
+
+        restartTimer();
+
+
+        return true;
+
+
+    } catch (error) {
+
+        console.error(
+            "自動保存データの読み込みに失敗しました:",
+            error
+        );
+
+
+        return false;
+
+    }
+
+}
 
 /* =========================================================
    ゲームオーバー
@@ -1619,6 +2047,8 @@ function togglePause() {
 
     }
 
+saveGame();
+
 }
 
 
@@ -1654,7 +2084,6 @@ function startGame() {
 
     holdPiece = null;
 
-    holdUsed = false;
 
 
     /*
@@ -1690,6 +2119,8 @@ function startGame() {
      */
 
     restartTimer();
+
+    saveGame();
 
 }
 
@@ -2166,9 +2597,11 @@ speedSlider.addEventListener(
 
         if (!gameOver) {
 
-            restartTimer();
+    restartTimer();
 
-        }
+}
+
+saveGame();
 
     }
 );
@@ -2231,4 +2664,25 @@ document.getElementById(
    ゲーム開始
 ========================================================= */
 
-startGame();
+if (!loadGame()) {
+
+    startGame();
+
+}
+
+/* =========================================================
+   定期自動保存
+========================================================= */
+
+setInterval(
+    function() {
+
+        if (!gameOver) {
+
+            saveGame();
+
+        }
+
+    },
+    1000
+);
