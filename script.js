@@ -232,8 +232,25 @@ function drawBoard() {
     const boardElement =
         document.getElementById("board");
 
+
+    /*
+     * HTMLに盤面が存在しない場合
+     */
+
+    if (!boardElement)
+        return;
+
+
+    /*
+     * 盤面を一度空にする
+     */
+
     boardElement.innerHTML = "";
 
+
+    /*
+     * 20行 × 10列を作る
+     */
 
     for (
         let y = 0;
@@ -251,11 +268,12 @@ function drawBoard() {
                 document.createElement("div");
 
 
-            cell.className = "cell";
+            cell.className =
+                "cell";
 
 
             /*
-             * 偶数列・奇数列で色分け
+             * 背景を交互にする
              */
 
             if (x % 2 === 0) {
@@ -274,10 +292,13 @@ function drawBoard() {
 
 
             /*
-             * 固定されたミノ
+             * すでに設置されたミノ
              */
 
-            if (board[y][x]) {
+            if (
+                board[y] &&
+                board[y][x]
+            ) {
 
                 cell.classList.add(
                     "filled"
@@ -299,6 +320,10 @@ function drawBoard() {
     }
 
 
+    /*
+     * 現在操作中のミノを描画
+     */
+
     drawCurrentPiece();
 
 }
@@ -314,6 +339,16 @@ function drawCurrentPiece() {
         return;
 
 
+    const boardElement =
+        document.getElementById(
+            "board"
+        );
+
+
+    if (!boardElement)
+        return;
+
+
     for (
         let y = 0;
         y < current.shape.length;
@@ -326,6 +361,10 @@ function drawCurrentPiece() {
             x++
         ) {
 
+            /*
+             * 空白部分は無視
+             */
+
             if (!current.shape[y][x])
                 continue;
 
@@ -333,9 +372,14 @@ function drawCurrentPiece() {
             const boardX =
                 current.x + x;
 
+
             const boardY =
                 current.y + y;
 
+
+            /*
+             * 盤面内だけ描画
+             */
 
             if (
                 boardX >= 0 &&
@@ -350,14 +394,19 @@ function drawCurrentPiece() {
 
 
                 const cell =
-                    document.getElementById(
-                        "board"
-                    ).children[index];
+                    boardElement.children[
+                        index
+                    ];
+
+
+                if (!cell)
+                    continue;
 
 
                 cell.classList.add(
                     "filled"
                 );
+
 
                 cell.classList.add(
                     current.color
@@ -863,15 +912,6 @@ function moveDown() {
     if (gameOver)
         return;
 
-
-    /*
-     * 一時停止中は下移動しない
-     */
-
-    if (paused)
-        return;
-
-
     if (
         !collision(
             current.x,
@@ -1223,12 +1263,12 @@ function restartTimer() {
         dropTimer
     );
 
+
     /*
-     * ゲームオーバー中・一時停止中は
-     * 自動落下タイマーを動かさない
+     * ゲームオーバー中は落下させない
      */
 
-    if (gameOver || paused) {
+    if (gameOver) {
 
         dropTimer = null;
 
@@ -1236,6 +1276,26 @@ function restartTimer() {
 
     }
 
+
+    /*
+     * 一時停止中は
+     * 自動落下だけ停止する
+     *
+     * 操作自体は禁止しない
+     */
+
+    if (paused) {
+
+        dropTimer = null;
+
+        return;
+
+    }
+
+
+    /*
+     * 通常時は自動落下
+     */
 
     dropTimer =
         setInterval(
@@ -2056,15 +2116,15 @@ function togglePause() {
         !paused;
 
 
+    /*
+     * ボタン表示
+     */
+
     const button =
         document.getElementById(
             "pause"
         );
 
-
-    /*
-     * ボタン表示を変更
-     */
 
     if (button) {
 
@@ -2077,8 +2137,10 @@ function togglePause() {
 
 
     /*
-     * 一時停止ならタイマー停止
-     * 再開ならタイマー再スタート
+     * 一時停止中なら
+     * 自動落下タイマーだけ停止
+     *
+     * 再開したらタイマー再開
      */
 
     restartTimer();
@@ -2099,13 +2161,28 @@ function togglePause() {
 
 function startGame() {
 
+    /*
+     * 既存のタイマーを停止
+     */
+
     clearInterval(
         dropTimer
     );
 
 
+    dropTimer = null;
+
+
+    /*
+     * 盤面を新しく作る
+     */
+
     createBoard();
 
+
+    /*
+     * ゲーム情報をリセット
+     */
 
     score = 0;
 
@@ -2114,13 +2191,17 @@ function startGame() {
     level = 1;
 
 
+    /*
+     * ゲーム状態
+     */
+
     gameOver = false;
 
     paused = false;
 
 
     /*
-     * HOLDリセット
+     * HOLDをリセット
      */
 
     holdPiece = null;
@@ -2129,14 +2210,14 @@ function startGame() {
 
 
     /*
-     * 履歴リセット
+     * 履歴をリセット
      */
 
     history = [];
 
 
     /*
-     * NEXT作成
+     * NEXTを作る
      */
 
     nextPiece =
@@ -2144,24 +2225,33 @@ function startGame() {
 
 
     /*
-     * 最初のミノを作成
+     * 最初のミノを出す
      */
 
     spawnPiece();
 
 
     /*
-     * 情報表示
+     * 情報を更新
      */
 
     updateInfo();
 
 
     /*
-     * 盤面・HOLD・NEXTを描画
+     * 盤面を描画
+     *
+     * 固定されたミノ
+     * ＋
+     * 現在操作中のミノ
      */
 
     drawBoard();
+
+
+    /*
+     * HOLD / NEXTを描画
+     */
 
     drawHold();
 
@@ -2169,7 +2259,7 @@ function startGame() {
 
 
     /*
-     * 一時停止ボタンを初期状態に戻す
+     * 一時停止ボタンを初期状態へ戻す
      */
 
     const pauseButton =
@@ -2521,10 +2611,7 @@ boardElement.addEventListener(
     "pointerdown",
     function(event) {
 
-        if (
-            gameOver ||
-            paused
-        )
+        if (gameOver)
             return;
 
 
@@ -2546,10 +2633,7 @@ boardElement.addEventListener(
     "pointerup",
     function(event) {
 
-        if (
-            gameOver ||
-            paused
-        )
+        if (gameOver)
             return;
 
 
