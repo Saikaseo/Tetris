@@ -284,12 +284,7 @@ h1 {
 
     gap: 1px;
 
-    /*
-     * ミノ自体を表示領域の中央へ
-     */
-
     justify-content: center;
-
     align-content: center;
 
 }
@@ -381,7 +376,7 @@ h1 {
     display: grid;
 
     grid-template-columns:
-        repeat(3, 1fr);
+        repeat(4, 1fr);
 
     gap: 7px;
 }
@@ -446,6 +441,7 @@ button:active {
 /* リスタート */
 
 #restart {
+
     width: min(95vw, 420px);
 
     margin: 8px auto;
@@ -454,7 +450,10 @@ button:active {
 
     font-size: 18px;
 
-    background: #0066cc;
+    background: #9acd32;
+
+    color: #111;
+
 }
 
 
@@ -509,7 +508,9 @@ button:active {
 
 
 #game-over button {
-    background: #0066cc;
+    background: #9acd32;
+
+    color: #111;
 
     padding: 10px 30px;
 }
@@ -556,11 +557,11 @@ button:active {
 
 #pc-controls {
 
-    width: 300px;
+    width: 135px;
 
     margin: 12px auto 0;
 
-    padding: 10px 15px;
+    padding: 8px 7px;
 
     background: #1c1c1c;
 
@@ -587,11 +588,11 @@ button:active {
     display: grid;
 
     grid-template-columns:
-        90px 1fr;
+        50px 1fr;
 
     text-align: left;
 
-    font-size: 13px;
+    font-size: 11px;
 
     line-height: 1.7;
 
@@ -634,16 +635,16 @@ button:active {
      * 盤面を常に中央にするため
      */
 
-#game-container {
+    #game-container {
 
-    grid-template-columns:
-        65px
-        min(60vw, 300px)
-        65px;
+        grid-template-columns:
+          65px
+         min(60vw, 300px)
+          65px;
 
-    column-gap: 5px;
+         column-gap: 5px;
 
-}
+    }
 
 
 #left-panel {
@@ -728,6 +729,10 @@ button:active {
 
         min-height: 40px;
 
+        background: #9acd32;
+
+        color: #111;
+
     }
 
 
@@ -757,6 +762,46 @@ button:active {
     flex: 1;
 
     min-width: 0;
+
+}
+
+#restart {
+
+    margin-top: 5px;
+
+    order: -1;
+
+}
+
+#restart-mobile {
+
+    display: none;
+
+    background: #9acd32;
+
+    color: #111;
+
+    font-size: 16px;
+
+}
+
+#restart-mobile {
+
+    display: block;
+
+    grid-column: 1 / -1;
+
+    min-height: 40px;
+
+}
+
+#buttons button {
+
+    user-select: none;
+
+    -webkit-user-select: none;
+
+    -webkit-touch-callout: none;
 
 }
 
@@ -831,6 +876,8 @@ button:active {
 #speed-slider {
 
     width: 120px;
+
+    accent-color: #9acd32;
 
 }
 

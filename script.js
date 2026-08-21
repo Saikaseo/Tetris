@@ -499,58 +499,33 @@ function spawnPiece() {
    NEXT表示
 ========================================================= */
 
-function drawNext() {
+function drawPreview(containerId, piece) {
 
-    const next =
-        document.getElementById(
-            "next"
-        );
+    const container =
+        document.getElementById(containerId);
 
+    if (!container)
+        return;
 
-    /*
-     * 中身を完全に消す
-     */
+    container.innerHTML = "";
 
-    next.innerHTML = "";
-
-
-    if (!nextPiece)
+    if (!piece)
         return;
 
 
-    /*
-     * ミノを表示する専用要素
-     */
+    const shape = piece.shape;
 
-    const piece =
-        document.createElement(
-            "div"
-        );
+    const pieceElement =
+        document.createElement("div");
 
-
-    piece.className =
+    pieceElement.className =
         "preview-piece";
 
+    pieceElement.style.gridTemplateColumns =
+        `repeat(${shape[0].length}, 14px)`;
 
-    piece.classList.add(
-        nextPiece.color
-    );
-
-
-    /*
-     * ミノの形をCSS Gridとして表示
-     */
-
-    const shape =
-        nextPiece.shape;
-
-
-    piece.style.gridTemplateColumns =
-        `repeat(${shape[0].length}, 1fr)`;
-
-
-    piece.style.gridTemplateRows =
-        `repeat(${shape.length}, 1fr)`;
+    pieceElement.style.gridTemplateRows =
+        `repeat(${shape.length}, 14px)`;
 
 
     for (
@@ -570,21 +545,31 @@ function drawNext() {
 
 
             const block =
-                document.createElement(
-                    "div"
-                );
-
+                document.createElement("div");
 
             block.className =
                 "preview-block";
 
-
             block.classList.add(
-                nextPiece.color
+                piece.color
             );
 
 
-            piece.appendChild(
+            /*
+             * 重要
+             *
+             * 0のマスを飛ばしても
+             * 本来の位置に表示する
+             */
+
+            block.style.gridColumn =
+                String(x + 1);
+
+            block.style.gridRow =
+                String(y + 1);
+
+
+            pieceElement.appendChild(
                 block
             );
 
@@ -593,8 +578,22 @@ function drawNext() {
     }
 
 
-    next.appendChild(
-        piece
+    container.appendChild(
+        pieceElement
+    );
+
+}
+
+
+/* =========================================================
+   NEXT表示
+========================================================= */
+
+function drawNext() {
+
+    drawPreview(
+        "next",
+        nextPiece
     );
 
 }
@@ -606,108 +605,12 @@ function drawNext() {
 
 function drawHold() {
 
-    const hold =
-        document.getElementById(
-            "hold"
-        );
-
-
-    if (!hold)
-        return;
-
-
-    /*
-     * 中身を完全に消す
-     */
-
-    hold.innerHTML = "";
-
-
-    if (!holdPiece)
-        return;
-
-
-    /*
-     * ミノ専用の表示要素
-     */
-
-    const piece =
-        document.createElement(
-            "div"
-        );
-
-
-    piece.className =
-        "preview-piece";
-
-
-    piece.classList.add(
-        holdPiece.color
-    );
-
-
-    /*
-     * ミノの形
-     */
-
-    const shape =
-        holdPiece.shape;
-
-
-    piece.style.gridTemplateColumns =
-        `repeat(${shape[0].length}, 1fr)`;
-
-
-    piece.style.gridTemplateRows =
-        `repeat(${shape.length}, 1fr)`;
-
-
-    for (
-        let y = 0;
-        y < shape.length;
-        y++
-    ) {
-
-        for (
-            let x = 0;
-            x < shape[y].length;
-            x++
-        ) {
-
-            if (!shape[y][x])
-                continue;
-
-
-            const block =
-                document.createElement(
-                    "div"
-                );
-
-
-            block.className =
-                "preview-block";
-
-
-            block.classList.add(
-                holdPiece.color
-            );
-
-
-            piece.appendChild(
-                block
-            );
-
-        }
-
-    }
-
-
-    hold.appendChild(
-        piece
+    drawPreview(
+        "hold",
+        holdPiece
     );
 
 }
-
 
 /* =========================================================
    HOLD
@@ -1512,14 +1415,47 @@ function undoMove() {
         return;
 
 
+    /*
+     * 現在のミノが登場した直後の履歴と、
+     * その1つ前の履歴が必要
+     *
+     * 例：
+     *
+     * Aミノ登場
+     * ↓
+     * Aミノ設置
+     * ↓
+     * Bミノ登場
+     *
+     * この状態なら
+     *
+     * history = [A, B]
+     *
+     * 一手戻すとAを復元する。
+     */
+
     if (
-        history.length === 0
+        history.length < 2
     )
         return;
 
 
+    /*
+     * 現在のミノBの履歴を削除
+     */
+
+    history.pop();
+
+
+    /*
+     * 1つ前のミノAの
+     * 登場直後の状態を取得
+     */
+
     const state =
-        history.pop();
+        history[
+            history.length - 1
+        ];
 
 
     board =
@@ -1547,16 +1483,13 @@ function undoMove() {
                 color:
                     state.current.color,
 
-
                 shape:
                     state.current.shape.map(
                         row => [...row]
                     ),
 
-
                 x:
                     state.current.x,
-
 
                 y:
                     state.current.y
@@ -1572,16 +1505,13 @@ function undoMove() {
                 color:
                     state.nextPiece.color,
 
-
                 shape:
                     state.nextPiece.shape.map(
                         row => [...row]
                     ),
 
-
                 x:
                     state.nextPiece.x,
-
 
                 y:
                     state.nextPiece.y
@@ -1597,16 +1527,13 @@ function undoMove() {
                 color:
                     state.holdPiece.color,
 
-
                 shape:
                     state.holdPiece.shape.map(
                         row => [...row]
                     ),
 
-
                 x:
                     state.holdPiece.x,
-
 
                 y:
                     state.holdPiece.y
@@ -1919,74 +1846,102 @@ document.addEventListener(
     }
 );
 
-
 /* =========================================================
-   スマホ：左
+   スマホ：下ボタン
+   長押し対応
 ========================================================= */
 
-document.getElementById("left")
-    .addEventListener(
-        "pointerdown",
-        function(event) {
+const downButton =
+    document.getElementById("down");
 
-            event.preventDefault();
 
-            moveHorizontal(-1);
+let downInterval = null;
 
-        }
+let downTimeout = null;
+
+
+/*
+ * ボタンを押した
+ */
+
+downButton.addEventListener(
+    "pointerdown",
+    function(event) {
+
+        event.preventDefault();
+
+
+        /*
+         * まず1回動かす
+         */
+
+        moveDown();
+
+
+        /*
+         * すぐには連続移動させず、
+         * 少し長押ししたら連続移動開始
+         */
+
+        downTimeout =
+            setTimeout(
+                function() {
+
+                    downInterval =
+                        setInterval(
+                            function() {
+
+                                moveDown();
+
+                            },
+                            80
+                        );
+
+                },
+                300
+            );
+
+    }
+);
+
+
+/*
+ * 長押し終了
+ */
+
+function stopDownButton() {
+
+    clearTimeout(
+        downTimeout
     );
 
-
-/* =========================================================
-   スマホ：右
-========================================================= */
-
-document.getElementById("right")
-    .addEventListener(
-        "pointerdown",
-        function(event) {
-
-            event.preventDefault();
-
-            moveHorizontal(1);
-
-        }
+    clearInterval(
+        downInterval
     );
 
+    downTimeout = null;
 
-/* =========================================================
-   スマホ：下
-========================================================= */
+    downInterval = null;
 
-document.getElementById("down")
-    .addEventListener(
-        "pointerdown",
-        function(event) {
-
-            event.preventDefault();
-
-            moveDown();
-
-        }
-    );
+}
 
 
-/* =========================================================
-   スマホ：回転ボタン
-========================================================= */
+downButton.addEventListener(
+    "pointerup",
+    stopDownButton
+);
 
-document.getElementById("rotate")
-    .addEventListener(
-        "pointerdown",
-        function(event) {
 
-            event.preventDefault();
+downButton.addEventListener(
+    "pointercancel",
+    stopDownButton
+);
 
-            rotatePiece();
 
-        }
-    );
-
+downButton.addEventListener(
+    "pointerleave",
+    stopDownButton
+);
 
 /* =========================================================
    スマホ：HOLD
@@ -2038,31 +1993,134 @@ document.getElementById("pause")
         }
     );
 
-
-/* =========================================================
-   スマホ：盤面タップで回転
+    /* =========================================================
+   スマホ：スワイプ操作
 ========================================================= */
 
-document.getElementById("board")
-    .addEventListener(
-        "pointerdown",
-        function(event) {
-
-            /*
-             * ゲームが動いているときだけ回転
-             */
-
-            if (
-                gameOver ||
-                paused
-            )
-                return;
+const boardElement =
+    document.getElementById("board");
 
 
-            rotatePiece();
+let touchStartX = 0;
+let touchStartY = 0;
+
+
+/*
+ * 盤面を押した位置を記録
+ */
+
+boardElement.addEventListener(
+    "pointerdown",
+    function(event) {
+
+        if (
+            gameOver ||
+            paused
+        )
+            return;
+
+
+        touchStartX =
+            event.clientX;
+
+        touchStartY =
+            event.clientY;
+
+    }
+);
+
+
+/*
+ * 盤面から指を離したとき
+ */
+
+boardElement.addEventListener(
+    "pointerup",
+    function(event) {
+
+        if (
+            gameOver ||
+            paused
+        )
+            return;
+
+
+        const dx =
+            event.clientX -
+            touchStartX;
+
+
+        const dy =
+            event.clientY -
+            touchStartY;
+
+
+        const absX =
+            Math.abs(dx);
+
+
+        const absY =
+            Math.abs(dy);
+
+
+        const swipeDistance = 30;
+
+
+        /*
+         * 左右スワイプ
+         */
+
+        if (
+            absX >= swipeDistance &&
+            absX > absY
+        ) {
+
+            if (dx < 0) {
+
+                moveHorizontal(-1);
+
+            } else {
+
+                moveHorizontal(1);
+
+            }
+
+            return;
 
         }
-    );
+
+
+        /*
+         * 上下方向のスワイプ
+         *
+         * 下スワイプ = 下移動
+         */
+
+        if (
+            absY >= swipeDistance &&
+            absY > absX
+        ) {
+
+            if (dy > 0) {
+
+                moveDown();
+
+            }
+
+            return;
+
+        }
+
+
+        /*
+         * ほとんど動かしていない場合は
+         * 今まで通りタップ回転
+         */
+
+        rotatePiece();
+
+    }
+);
 
 /* =========================================================
    落下速度スライダー
@@ -2123,6 +2181,22 @@ document.getElementById("restart")
     .addEventListener(
         "click",
         function() {
+
+            startGame();
+
+        }
+    );
+
+/* =========================================================
+   スマホ：リスタート
+========================================================= */
+
+document.getElementById("restart-mobile")
+    .addEventListener(
+        "pointerdown",
+        function(event) {
+
+            event.preventDefault();
 
             startGame();
 
