@@ -912,6 +912,7 @@ function moveDown() {
     if (gameOver)
         return;
 
+
     if (
         !collision(
             current.x,
@@ -922,9 +923,9 @@ function moveDown() {
 
         current.y++;
 
-drawBoard();
+        drawBoard();
 
-saveGame();
+        saveGame();
 
     } else {
 
@@ -2659,27 +2660,73 @@ boardElement.addEventListener(
 
 
         /*
-         * 左右スワイプ
-         */
+ * 左右スワイプ
+ *
+ * スワイプした距離に応じて
+ * 複数マス移動する
+ */
 
-        if (
-            absX >= swipeDistance &&
-            absX > absY
+if (
+    absX >= swipeDistance &&
+    absX > absY
+) {
+
+    /*
+     * 1マス分とする距離
+     *
+     * 30pxで1マス
+     */
+
+    const moveCount =
+        Math.max(
+            1,
+            Math.floor(
+                absX / swipeDistance
+            )
+        );
+
+
+    /*
+     * 左へ移動
+     */
+
+    if (dx < 0) {
+
+        for (
+            let i = 0;
+            i < moveCount;
+            i++
         ) {
 
-            if (dx < 0) {
-
-                moveHorizontal(-1);
-
-            } else {
-
-                moveHorizontal(1);
-
-            }
-
-            return;
+            moveHorizontal(-1);
 
         }
+
+    }
+
+
+    /*
+     * 右へ移動
+     */
+
+    else {
+
+        for (
+            let i = 0;
+            i < moveCount;
+            i++
+        ) {
+
+            moveHorizontal(1);
+
+        }
+
+    }
+
+
+    return;
+
+}
 
 
         /*
