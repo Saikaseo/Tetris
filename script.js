@@ -937,14 +937,45 @@ function moveDown() {
 
 
 /* =========================================================
+   即着地
+========================================================= */
+
+function hardDrop() {
+
+    if (gameOver)
+        return;
+
+
+    while (
+        !collision(
+            current.x,
+            current.y + 1,
+            current.shape
+        )
+    ) {
+
+        current.y++;
+
+    }
+
+
+    lockPiece();
+
+}
+
+/* =========================================================
    回転
 ========================================================= */
 
 function rotatePiece() {
 
     if (gameOver)
-    return;
+        return;
 
+
+    /*
+     * 現在の形を保存
+     */
 
     const oldShape =
         current.shape;
@@ -957,6 +988,10 @@ function rotatePiece() {
     const width =
         oldShape[0].length;
 
+
+    /*
+     * 時計回りに90度回転
+     */
 
     const newShape = [];
 
@@ -986,7 +1021,7 @@ function rotatePiece() {
 
 
     /*
-     * 通常の回転
+     * まず現在位置で回転できるか確認
      */
 
     if (
@@ -998,57 +1033,106 @@ function rotatePiece() {
     ) {
 
         current.shape =
-    newShape;
+            newShape;
 
 
-drawBoard();
+        drawBoard();
 
-saveGame();
+        saveGame();
 
-return;
+        return;
 
     }
 
 
     /*
-     * 壁際なら少しずらす
+     * 狭い場所用の位置調整
+     *
+     * 左右だけでなく
+     * 上下にも少しずらして
+     * 回転できる場所を探す
      */
 
     const offsets = [
 
-        -1,
-        1,
-        -2,
-        2
+        [0, -1],
+
+        [0, -2],
+
+        [0, 1],
+
+        [0, 2],
+
+        [-1, 0],
+
+        [1, 0],
+
+        [-2, 0],
+
+        [2, 0],
+
+        [-1, -1],
+
+        [1, -1],
+
+        [-1, 1],
+
+        [1, 1],
+
+        [-2, -1],
+
+        [2, -1],
+
+        [-2, 1],
+
+        [2, 1]
 
     ];
 
+
+    /*
+     * 回転可能な位置を探す
+     */
 
     for (
         const offset of offsets
     ) {
 
+        const newX =
+            current.x +
+            offset[0];
+
+
+        const newY =
+            current.y +
+            offset[1];
+
+
         if (
             !collision(
-                current.x + offset,
-                current.y,
+                newX,
+                newY,
                 newShape
             )
         ) {
 
-            current.x +=
-                offset;
+            current.x =
+                newX;
+
+
+            current.y =
+                newY;
 
 
             current.shape =
-    newShape;
+                newShape;
 
 
-drawBoard();
+            drawBoard();
 
-saveGame();
+            saveGame();
 
-return;
+            return;
 
         }
 
@@ -2446,118 +2530,32 @@ document.addEventListener(
 );
 
 /* =========================================================
-   スマホ：下ボタン
-   長押し対応
+   スマホ：HOLD表示枠をタップ
 ========================================================= */
 
-const downButton =
-    document.getElementById("down");
+const holdElement =
+    document.getElementById("hold");
 
 
-let downInterval = null;
+if (holdElement) {
 
-let downTimeout = null;
-
-
-/*
- * ボタンを押した
- */
-
-downButton.addEventListener(
-    "pointerdown",
-    function(event) {
-
-        event.preventDefault();
-
-
-        /*
-         * まず1回動かす
-         */
-
-        moveDown();
-
-
-        /*
-         * すぐには連続移動させず、
-         * 少し長押ししたら連続移動開始
-         */
-
-        downTimeout =
-            setTimeout(
-                function() {
-
-                    downInterval =
-                        setInterval(
-                            function() {
-
-                                moveDown();
-
-                            },
-                            80
-                        );
-
-                },
-                300
-            );
-
-    }
-);
-
-
-/*
- * 長押し終了
- */
-
-function stopDownButton() {
-
-    clearTimeout(
-        downTimeout
-    );
-
-    clearInterval(
-        downInterval
-    );
-
-    downTimeout = null;
-
-    downInterval = null;
-
-}
-
-
-downButton.addEventListener(
-    "pointerup",
-    stopDownButton
-);
-
-
-downButton.addEventListener(
-    "pointercancel",
-    stopDownButton
-);
-
-
-downButton.addEventListener(
-    "pointerleave",
-    stopDownButton
-);
-
-/* =========================================================
-   スマホ：HOLD
-========================================================= */
-
-document.getElementById("hold-button")
-    .addEventListener(
+    holdElement.addEventListener(
         "pointerdown",
         function(event) {
 
             event.preventDefault();
+
+            /*
+             * HOLD表示枠をタップしたら
+             * HOLD操作
+             */
 
             holdCurrentPiece();
 
         }
     );
 
+}
 
 /* =========================================================
    スマホ：一手戻す
@@ -2592,8 +2590,9 @@ document.getElementById("pause")
         }
     );
 
-    /* =========================================================
+/* =========================================================
    スマホ：スワイプ操作
+   指を画面につけたまま左右移動
 ========================================================= */
 
 const boardElement =
@@ -2605,7 +2604,26 @@ let touchStartY = 0;
 
 
 /*
- * 盤面を押した位置を記録
+ * 前回ミノを移動した位置
+ *
+ * 指を動かしている途中で
+ * どこまで移動したかを記録する
+ */
+
+let lastMoveX = 0;
+
+
+/*
+ * 横方向の1マス移動に必要な距離
+ *
+ * 小さくすると細かく移動しやすくなる
+ */
+
+const swipeDistance = 30;
+
+
+/*
+ * 指を盤面につけたとき
  */
 
 boardElement.addEventListener(
@@ -2616,18 +2634,176 @@ boardElement.addEventListener(
             return;
 
 
+        /*
+         * スマホの指操作を優先
+         */
+
+        event.preventDefault();
+
+
         touchStartX =
             event.clientX;
 
+
         touchStartY =
             event.clientY;
+
+
+        /*
+         * 移動距離の基準位置
+         */
+
+        lastMoveX =
+            event.clientX;
+
+
+        /*
+         * 指を離すまで
+         * この要素で操作を受け取る
+         */
+
+        if (
+            boardElement.setPointerCapture
+        ) {
+
+            boardElement.setPointerCapture(
+                event.pointerId
+            );
+
+        }
 
     }
 );
 
 
 /*
- * 盤面から指を離したとき
+ * 指をつけたまま動かしている間
+ */
+
+boardElement.addEventListener(
+    "pointermove",
+    function(event) {
+
+        if (gameOver)
+            return;
+
+
+        /*
+         * 指を画面につけたまま
+         * 横方向へ動かした距離
+         */
+
+        const dx =
+            event.clientX -
+            lastMoveX;
+
+
+        const absX =
+            Math.abs(dx);
+
+
+        /*
+         * 縦方向に大きく動かしている場合は
+         * 横移動しない
+         */
+
+        const totalDy =
+            Math.abs(
+                event.clientY -
+                touchStartY
+            );
+
+
+        /*
+         * 横移動
+         *
+         * 30px動くごとに1マス
+         */
+
+        if (
+            absX >= swipeDistance &&
+            absX > totalDy
+        ) {
+
+            const moveCount =
+                Math.floor(
+                    absX /
+                    swipeDistance
+                );
+
+
+            /*
+             * 左へ
+             */
+
+            if (dx < 0) {
+
+                for (
+                    let i = 0;
+                    i < moveCount;
+                    i++
+                ) {
+
+                    moveHorizontal(-1);
+
+                }
+
+            }
+
+
+            /*
+             * 右へ
+             */
+
+            else {
+
+                for (
+                    let i = 0;
+                    i < moveCount;
+                    i++
+                ) {
+
+                    moveHorizontal(1);
+
+                }
+
+            }
+
+
+            /*
+             * 今回移動した分だけ
+             * 基準位置を進める
+             *
+             * これにより
+             * 指をつけたまま
+             * さらに移動できる
+             */
+
+            const usedDistance =
+                moveCount *
+                swipeDistance;
+
+
+            if (dx < 0) {
+
+                lastMoveX -=
+                    usedDistance;
+
+            } else {
+
+                lastMoveX +=
+                    usedDistance;
+
+            }
+
+        }
+
+    }
+);
+
+
+/*
+ * 指を離したとき
  */
 
 boardElement.addEventListener(
@@ -2636,6 +2812,9 @@ boardElement.addEventListener(
 
         if (gameOver)
             return;
+
+
+        event.preventDefault();
 
 
         const dx =
@@ -2655,108 +2834,75 @@ boardElement.addEventListener(
         const absY =
             Math.abs(dy);
 
+            /*
+             * 大きく下へスワイプ
+             *
+             * → 即着地
+             */
 
-        const swipeDistance = 30;
+const hardDropDistance = 100;
 
-
-        /*
- * 左右スワイプ
- *
- * スワイプした距離に応じて
- * 複数マス移動する
- */
 
 if (
-    absX >= swipeDistance &&
-    absX > absY
+    dy >= hardDropDistance &&
+    absY > absX
 ) {
 
-    /*
-     * 1マス分とする距離
-     *
-     * 30pxで1マス
-     */
-
-    const moveCount =
-        Math.max(
-            1,
-            Math.floor(
-                absX / swipeDistance
-            )
-        );
-
-
-    /*
-     * 左へ移動
-     */
-
-    if (dx < 0) {
-
-        for (
-            let i = 0;
-            i < moveCount;
-            i++
-        ) {
-
-            moveHorizontal(-1);
-
-        }
-
-    }
-
-
-    /*
-     * 右へ移動
-     */
-
-    else {
-
-        for (
-            let i = 0;
-            i < moveCount;
-            i++
-        ) {
-
-            moveHorizontal(1);
-
-        }
-
-    }
-
+    hardDrop();
 
     return;
 
 }
 
-
         /*
-         * 上下方向のスワイプ
+         * 指をほとんど動かさなかった場合
          *
-         * 下スワイプ = 下移動
+         * → タップとして回転
          */
 
+        const tapDistance = 15;
+
+
         if (
-            absY >= swipeDistance &&
-            absY > absX
+            absX < tapDistance &&
+            absY < tapDistance
         ) {
 
-            if (dy > 0) {
-
-                moveDown();
-
-            }
-
-            return;
+            rotatePiece();
 
         }
 
+    }
+);
 
-        /*
-         * ほとんど動かしていない場合は
-         * 今まで通りタップ回転
-         */
 
-        rotatePiece();
+/*
+ * 指をキャンセルした場合
+ */
+
+boardElement.addEventListener(
+    "pointercancel",
+    function(event) {
+
+        if (
+            boardElement.releasePointerCapture
+        ) {
+
+            try {
+
+                boardElement.releasePointerCapture(
+                    event.pointerId
+                );
+
+            } catch (error) {
+
+                /*
+                 * 何もしない
+                 */
+
+            }
+
+        }
 
     }
 );
