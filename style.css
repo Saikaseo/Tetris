@@ -438,25 +438,6 @@ button:active {
 }
 
 
-/* リスタート */
-
-#restart {
-
-    width: min(95vw, 420px);
-
-    margin: 8px auto;
-
-    display: block;
-
-    font-size: 18px;
-
-    background: #9acd32;
-
-    color: #111;
-
-}
-
-
 /* =========================================================
    ゲームオーバー
 ========================================================= */
@@ -535,11 +516,6 @@ button:active {
 
     #buttons {
         display: none;
-    }
-
-
-    #restart {
-        width: 200px;
     }
 
 
@@ -723,19 +699,6 @@ button:active {
     }
 
 
-    #restart {
-
-        margin-top: 5px;
-
-        min-height: 40px;
-
-        background: #9acd32;
-
-        color: #111;
-
-    }
-
-
     #pc-controls {
 
         display: none;
@@ -765,26 +728,6 @@ button:active {
 
 }
 
-#restart {
-
-    margin-top: 5px;
-
-    order: -1;
-
-}
-
-#restart-mobile {
-
-    display: none;
-
-    background: #9acd32;
-
-    color: #111;
-
-    font-size: 16px;
-
-}
-
 #restart-mobile {
 
     display: block;
@@ -792,6 +735,12 @@ button:active {
     grid-column: 1 / -1;
 
     min-height: 40px;
+
+    background: #9acd32;
+
+    color: #111;
+
+    font-size: 16px;
 
 }
 

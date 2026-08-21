@@ -56,6 +56,8 @@ let nextPiece = null;
 
 let holdPiece = null;
 
+let holdUsed = false;
+
 
 /* =========================================================
    一手戻す
@@ -859,7 +861,15 @@ saveGame();
 function moveDown() {
 
     if (gameOver)
-    return;
+        return;
+
+
+    /*
+     * 一時停止中は下移動しない
+     */
+
+    if (paused)
+        return;
 
 
     if (
@@ -1212,6 +1222,19 @@ function restartTimer() {
     clearInterval(
         dropTimer
     );
+
+    /*
+     * ゲームオーバー中・一時停止中は
+     * 自動落下タイマーを動かさない
+     */
+
+    if (gameOver || paused) {
+
+        dropTimer = null;
+
+        return;
+
+    }
 
 
     dropTimer =
@@ -2025,6 +2048,10 @@ function togglePause() {
         return;
 
 
+    /*
+     * 一時停止状態を切り替える
+     */
+
     paused =
         !paused;
 
@@ -2035,19 +2062,33 @@ function togglePause() {
         );
 
 
-    if (paused) {
+    /*
+     * ボタン表示を変更
+     */
+
+    if (button) {
 
         button.textContent =
-            "▶";
-
-    } else {
-
-        button.textContent =
-            "Ⅱ";
+            paused
+                ? "▶"
+                : "Ⅱ";
 
     }
 
-saveGame();
+
+    /*
+     * 一時停止ならタイマー停止
+     * 再開ならタイマー再スタート
+     */
+
+    restartTimer();
+
+
+    /*
+     * 自動保存
+     */
+
+    saveGame();
 
 }
 
@@ -2084,6 +2125,7 @@ function startGame() {
 
     holdPiece = null;
 
+    holdUsed = false;
 
 
     /*
@@ -2101,11 +2143,23 @@ function startGame() {
         randomPiece();
 
 
+    /*
+     * 最初のミノを作成
+     */
+
     spawnPiece();
 
 
+    /*
+     * 情報表示
+     */
+
     updateInfo();
 
+
+    /*
+     * 盤面・HOLD・NEXTを描画
+     */
 
     drawBoard();
 
@@ -2115,10 +2169,33 @@ function startGame() {
 
 
     /*
-     * 一定速度で落下
+     * 一時停止ボタンを初期状態に戻す
+     */
+
+    const pauseButton =
+        document.getElementById(
+            "pause"
+        );
+
+
+    if (pauseButton) {
+
+        pauseButton.textContent =
+            "Ⅱ";
+
+    }
+
+
+    /*
+     * 自動落下開始
      */
 
     restartTimer();
+
+
+    /*
+     * 自動保存
+     */
 
     saveGame();
 
@@ -2606,19 +2683,7 @@ saveGame();
     }
 );
 
-/* =========================================================
-   リスタート
-========================================================= */
 
-document.getElementById("restart")
-    .addEventListener(
-        "click",
-        function() {
-
-            startGame();
-
-        }
-    );
 
 /* =========================================================
    スマホ：リスタート
