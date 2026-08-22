@@ -1,6 +1,10 @@
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
+
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 body {
@@ -11,127 +15,94 @@ body {
     color: white;
 
     font-family: Arial, sans-serif;
-
     text-align: center;
 
     overflow: hidden;
-
     touch-action: none;
 }
 
 h1 {
     margin: 10px 0 5px;
-
     font-size: 28px;
 }
 
-
 /* =========================================================
-   スコアなど
+   スコア・レベル・ライン
 ========================================================= */
 
 #game-info {
     display: flex;
-
     justify-content: center;
-
     gap: 20px;
 
     margin-bottom: 8px;
-
     font-size: 16px;
 }
 
 .info-box {
-    background: #222;
-
-    border-radius: 8px;
-
+    min-width: 90px;
     padding: 5px 12px;
 
-    min-width: 90px;
+    background: #222;
+    border-radius: 8px;
 }
-
 
 /* =========================================================
    ゲーム全体
 ========================================================= */
 
 #game-container {
-
     display: grid;
 
-    /*
-     * 左・中央・右を完全に固定
-     *
-     * 盤面は常に中央
-     */
-
-    grid-template-columns:
-        150px
-        300px
-        150px;
-
+    grid-template-columns: 150px 300px 150px;
     justify-content: center;
-
     align-items: start;
 
     column-gap: 15px;
-
 }
 
-
 /* =========================================================
-   HOLD側
+   HOLD / NEXT
 ========================================================= */
 
 #left-panel {
-
     width: 100px;
 
     display: flex;
-
     flex-direction: column;
-
     align-items: center;
-
 }
 
-
-#hold-panel {
-
-    width: 100px;
-
-    text-align: center;
-
-}
-
-
-/* =========================================================
-   NEXT側
-========================================================= */
-
+#hold-panel,
 #next-panel {
-
     width: 100px;
-
     text-align: center;
-
 }
-
-
-/* HOLD / NEXT のタイトル */
 
 .piece-title {
-
-    font-size: 13px;
-
     margin-bottom: 5px;
 
+    font-size: 13px;
     font-weight: bold;
-
 }
 
+#hold,
+#next {
+    width: 70px;
+    height: 70px;
+
+    margin: auto;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: #222;
+    border: 2px solid #555;
+    border-radius: 8px;
+
+    overflow: hidden;
+}
 
 /* =========================================================
    盤面
@@ -140,53 +111,88 @@ h1 {
 #board {
     position: relative;
 
-    background: #222;
-
-    border: 3px solid #555;
-
     width: min(60vw, 300px);
-
     height: calc(min(60vw, 300px) * 2);
 
     display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(20, 1fr);
 
-    grid-template-columns:
-        repeat(10, 1fr);
+    background: #222;
+    border: 3px solid #555;
 
-    grid-template-rows:
-        repeat(20, 1fr);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
-
-
-/* =========================================================
-   盤面マス
-========================================================= */
 
 .cell {
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
-
-
-/* 偶数列 */
 
 .cell.even-column {
     background: #1b1b1b;
 }
 
-
-/* 奇数列 */
-
 .cell.odd-column {
     background: #242424;
 }
 
-
-/* ブロックが入ったマス */
-
 .cell.filled {
-    border: 2px solid rgba(255,255,255,0.25);
+    border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
+/* =========================================================
+   落下予測地点（ゴーストミノ）
+========================================================= */
+
+.cell.ghost {
+    position: relative;
+
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cell.ghost::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 2px;
+
+    opacity: 0.45;
+}
+
+/* ゴーストミノ：本体と同じ色の薄い色 */
+
+.cell.ghost.I::after {
+    background: rgba(0, 255, 255, 0.5);
+}
+
+.cell.ghost.O::after {
+    background: rgba(255, 255, 0, 0.5);
+}
+
+.cell.ghost.T::after {
+    background: rgba(170, 0, 255, 0.5);
+}
+
+.cell.ghost.S::after {
+    background: rgba(0, 204, 68, 0.5);
+}
+
+.cell.ghost.Z::after {
+    background: rgba(255, 51, 51, 0.5);
+}
+
+.cell.ghost.J::after {
+    background: rgba(51, 102, 255, 0.5);
+}
+
+.cell.ghost.L::after {
+    background: rgba(255, 136, 0, 0.5);
+}
 
 /* =========================================================
    テトリミノの色
@@ -220,149 +226,52 @@ h1 {
     background: #ff8800 !important;
 }
 
-
 /* =========================================================
-   右側
-========================================================= */
-
-#side-panel {
-    width: 120px;
-}
-
-
-/* HOLD / NEXT タイトル */
-
-#next-title {
-    font-size: 14px;
-
-    margin-bottom: 5px;
-}
-
-
-/* =========================================================
-   HOLD / NEXT 表示領域
-========================================================= */
-
-#hold,
-#next {
-
-    width: 70px;
-
-    height: 70px;
-
-    margin: auto;
-
-    background: #222;
-
-    border: 2px solid #555;
-
-    border-radius: 8px;
-
-    /*
-     * 4×4マスではなく
-     * 中央にミノを配置する
-     */
-
-    display: flex;
-
-    justify-content: center;
-
-    align-items: center;
-
-    overflow: hidden;
-
-}
-
-
-/* =========================================================
-   プレビュー用ミノ
+   HOLD / NEXT プレビュー
 ========================================================= */
 
 .preview-piece {
-
     display: grid;
-
     gap: 1px;
 
     justify-content: center;
     align-content: center;
-
 }
 
-
-/* =========================================================
-   プレビュー用ブロック
-========================================================= */
-
 .preview-block {
-
     width: 11px;
-
     height: 11px;
 
     border-radius: 2px;
-
 }
 
-
-/*
- * プレビューでは
- * 元の色クラスをそのまま利用
- */
-
 .preview-block.I {
-
     background: #00ffff;
-
 }
 
 .preview-block.O {
-
     background: #ffff00;
-
 }
 
 .preview-block.T {
-
     background: #aa00ff;
-
 }
 
 .preview-block.S {
-
     background: #00cc44;
-
 }
 
 .preview-block.Z {
-
     background: #ff3333;
-
 }
 
 .preview-block.J {
-
     background: #3366ff;
-
 }
 
 .preview-block.L {
-
     background: #ff8800;
-
 }
-
-
-/* NEXT / HOLD のマス */
-
-.next-cell {
-
-    border: none;
-
-    background: transparent;
-
-}
-
 
 /* =========================================================
    スマホ操作ボタン
@@ -374,149 +283,42 @@ h1 {
     margin: 12px auto 0;
 
     display: grid;
-
-    grid-template-columns:
-        repeat(4, 1fr);
-
+    grid-template-columns: repeat(4, 1fr);
     gap: 7px;
 }
 
-
 button {
-    border: none;
+    min-height: 52px;
 
+    border: none;
     border-radius: 10px;
 
     background: #333;
-
     color: white;
 
     font-size: 20px;
-
     font-weight: bold;
-
-    min-height: 52px;
 
     box-shadow: 0 3px 0 #111;
 }
 
-
 button:active {
     transform: translateY(3px);
-
     box-shadow: none;
-
     background: #555;
 }
-
-
-/* 回転 */
-
-#rotate {
-    background: #663399;
-}
-
-/* 一手戻す */
 
 #undo {
     background: #555;
 }
 
-
-/* 一時停止 */
-
 #pause {
     background: #444;
 }
 
-
-/* =========================================================
-   ゲームオーバー
-========================================================= */
-
-#game-over {
-    position: fixed;
-
-    inset: 0;
-
-    display: none;
-
-    justify-content: center;
-
-    align-items: center;
-
-    background: rgba(0,0,0,0.75);
-
-    z-index: 100;
-}
-
-
-#game-over-box {
-    background: #222;
-
-    border: 2px solid #666;
-
-    border-radius: 15px;
-
-    padding: 25px 35px;
-
-    box-shadow: 0 10px 30px black;
-}
-
-
-#game-over-title {
-    font-size: 30px;
-
-    font-weight: bold;
-
-    margin-bottom: 15px;
-}
-
-
-#final-score {
-    font-size: 20px;
-
-    margin-bottom: 20px;
-}
-
-
-#game-over button {
+#restart-mobile {
     background: #9acd32;
-
     color: #111;
-
-    padding: 10px 30px;
-}
-
-
-/* =========================================================
-   PC
-========================================================= */
-
-@media (min-width: 700px) {
-
-    h1 {
-        margin-top: 15px;
-
-        font-size: 32px;
-    }
-
-
-    /*
-     * PCではスマホ操作ボタンを表示しない
-     */
-
-    #buttons {
-        display: none;
-    }
-
-
-    #board {
-        width: 300px;
-
-        height: 600px;
-    }
-
 }
 
 /* =========================================================
@@ -524,263 +326,35 @@ button:active {
 ========================================================= */
 
 #pc-controls {
-
     width: 135px;
 
     margin: 12px auto 0;
-
     padding: 8px 7px;
 
     background: #1c1c1c;
-
     border: 1px solid #444;
-
     border-radius: 10px;
-
 }
-
 
 .control-title {
-
-    font-size: 15px;
-
-    font-weight: bold;
-
     margin-bottom: 6px;
 
+    font-size: 15px;
+    font-weight: bold;
 }
-
 
 .control-row {
-
     display: grid;
-
-    grid-template-columns:
-        50px 1fr;
+    grid-template-columns: 50px 1fr;
 
     text-align: left;
-
     font-size: 11px;
-
     line-height: 1.7;
-
 }
-
 
 .control-row span:first-child {
-
     font-weight: bold;
-
     color: #ddd;
-
-}
-
-/* =========================================================
-   スマホ
-========================================================= */
-
-@media (max-width: 699px) {
-
-    h1 {
-
-        font-size: 24px;
-
-        margin-top: 5px;
-
-    }
-
-
-    #game-info {
-
-        margin-bottom: 4px;
-
-    }
-
-
-    /*
-     * 左右のスペースを完全に同じにする
-     *
-     * 盤面を常に中央にするため
-     */
-
-    #game-container {
-
-        grid-template-columns:
-          65px
-         min(60vw, 300px)
-          65px;
-
-         column-gap: 5px;
-
-    }
-
-
-#left-panel {
-
-    width: 65px;
-
-}
-
-
-#hold-panel {
-
-    width: 65px;
-
-}
-
-
-#pc-controls {
-
-    display: none;
-
-}
-
-
-    #hold-panel {
-
-        width: 65px;
-
-    }
-
-
-    #next-panel {
-
-        width: 65px;
-
-    }
-
-
-    #hold,
-    #next {
-        width: 58px;
-
-        height: 58px;
-
-    }
-
-
-    .preview-block {
-
-        width: 11px;
-
-        height: 11px;
-
-    }
-
-
-    .piece-title {
-
-        font-size: 10px;
-
-    }
-
-
-    #buttons {
-
-        margin-top: 7px;
-
-    }
-
-
-    button {
-
-        min-height: 45px;
-
-        font-size: 18px;
-
-    }
-
-
-    #pc-controls {
-
-        display: none;
-
-    }
-
-#speed-control {
-
-    width: 95vw;
-
-    max-width: 420px;
-
-    margin: 5px auto;
-
-    padding: 5px 8px;
-
-    font-size: 12px;
-
-}
-
-
-#speed-slider {
-
-    flex: 1;
-
-    min-width: 0;
-
-}
-
-#restart-mobile {
-
-    display: block;
-
-    grid-column: 1 / -1;
-
-    min-height: 40px;
-
-    background: #9acd32;
-
-    color: #111;
-
-    font-size: 16px;
-
-}
-
-#buttons button {
-
-    user-select: none;
-
-    -webkit-user-select: none;
-
-    -webkit-touch-callout: none;
-
-}
-
-}
-
-
-/* =========================================================
-   横向きスマホ
-========================================================= */
-
-@media (max-height: 600px) {
-
-    h1 {
-        display: none;
-    }
-
-
-    #game-info {
-        margin-top: 3px;
-    }
-
-
-    #buttons {
-        margin-top: 4px;
-    }
-
-
-    button {
-        min-height: 38px;
-    }
-
-
-    #restart {
-        min-height: 35px;
-
-        margin-top: 3px;
-    }
-
 }
 
 /* =========================================================
@@ -788,47 +362,414 @@ button:active {
 ========================================================= */
 
 #speed-control {
-
     width: 300px;
 
     margin: 10px auto;
-
     padding: 8px 12px;
 
-    background: #1c1c1c;
-
-    border: 1px solid #444;
-
-    border-radius: 10px;
-
     display: flex;
-
     align-items: center;
-
     justify-content: center;
-
     gap: 8px;
 
+    background: #1c1c1c;
+    border: 1px solid #444;
+    border-radius: 10px;
+
     font-size: 13px;
-
 }
-
 
 #speed-slider {
-
     width: 120px;
-
     accent-color: #9acd32;
-
 }
 
-
 #speed-value {
-
     width: 60px;
 
     text-align: right;
-
     font-family: monospace;
+}
 
+/* =========================================================
+   ゲームオーバー
+========================================================= */
+
+#game-over {
+    position: fixed;
+    inset: 0;
+
+    display: none;
+    justify-content: center;
+    align-items: center;
+
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 100;
+}
+
+#game-over-box {
+    padding: 25px 35px;
+
+    background: #222;
+    border: 2px solid #666;
+    border-radius: 15px;
+
+    box-shadow: 0 10px 30px black;
+}
+
+#game-over-title {
+    margin-bottom: 15px;
+
+    font-size: 30px;
+    font-weight: bold;
+}
+
+#final-score {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+#game-over button {
+    padding: 10px 30px;
+
+    background: #9acd32;
+    color: #111;
+}
+
+/* =========================================================
+   ライン消去エフェクト
+========================================================= */
+
+#board .line-clear-row {
+    position: absolute;
+    left: 0;
+
+    width: 100%;
+
+    pointer-events: none;
+    z-index: 50;
+
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.05),
+            rgba(255, 255, 255, 0.95),
+            rgba(255, 255, 255, 0.05)
+        );
+
+    border-top: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+
+    box-shadow:
+        0 0 8px #fff,
+        0 0 18px #fff,
+        0 0 35px #ffff99,
+        0 0 55px #fff,
+        inset 0 0 15px #fff;
+
+    animation:
+        lineClearRowFlash
+        0.55s
+        ease-out
+        forwards;
+}
+
+@keyframes lineClearRowFlash {
+    0% {
+        opacity: 0.2;
+        transform: scaleX(0.7);
+        filter: brightness(1);
+    }
+
+    25% {
+        opacity: 1;
+        transform: scaleX(1.02);
+        filter: brightness(2.5);
+
+        box-shadow:
+            0 0 10px #fff,
+            0 0 25px #fff,
+            0 0 45px #ffff99,
+            0 0 70px #fff,
+            inset 0 0 20px #fff;
+    }
+
+    55% {
+        opacity: 1;
+        transform: scaleX(1);
+        filter: brightness(4);
+
+        box-shadow:
+            0 0 15px #fff,
+            0 0 35px #fff,
+            0 0 60px #ffff99,
+            0 0 90px #fff,
+            inset 0 0 25px #fff;
+    }
+
+    100% {
+        opacity: 0;
+        transform: scaleX(1.12);
+        filter: brightness(6);
+    }
+}
+
+/* =========================================================
+   盤面エフェクト
+========================================================= */
+
+#board.line-clear-effect {
+    animation: boardLineFlash 0.55s ease-out;
+}
+
+#board.combo-clear-effect {
+    animation: comboBoardFlash 0.65s ease-out;
+}
+
+#board.chain-effect {
+    animation: chainBoardFlash 0.75s ease-out;
+}
+
+#board.chain-effect[data-chain="2"] {
+    filter: brightness(1.15);
+}
+
+#board.chain-effect[data-chain="3"] {
+    filter: brightness(1.25);
+}
+
+#board.chain-effect[data-chain="4"] {
+    filter: brightness(1.35);
+}
+
+#board.chain-effect[data-chain="5"] {
+    filter: brightness(1.5);
+}
+
+@keyframes boardLineFlash {
+    0% {
+        filter: brightness(1);
+    }
+
+    35% {
+        filter: brightness(1.25);
+    }
+
+    60% {
+        filter: brightness(1.08);
+    }
+
+    100% {
+        filter: brightness(1);
+    }
+}
+
+@keyframes comboBoardFlash {
+    0% {
+        filter: brightness(1);
+    }
+
+    25% {
+        filter: brightness(1.4);
+    }
+
+    50% {
+        filter: brightness(1.15);
+    }
+
+    75% {
+        filter: brightness(1.35);
+    }
+
+    100% {
+        filter: brightness(1);
+    }
+}
+
+@keyframes chainBoardFlash {
+    0% {
+        filter: brightness(1);
+    }
+
+    20% {
+        filter: brightness(1.5);
+    }
+
+    40% {
+        filter: brightness(1.15);
+    }
+
+    65% {
+        filter: brightness(1.7);
+    }
+
+    100% {
+        filter: brightness(1);
+    }
+}
+
+/* =========================================================
+   全消し
+========================================================= */
+
+#board.perfect-clear-effect {
+    animation: perfectBoardFlash 0.9s ease-out;
+}
+
+@keyframes perfectBoardFlash {
+    0% {
+        filter: brightness(1);
+    }
+
+    20% {
+        filter: brightness(2);
+    }
+
+    40% {
+        filter: brightness(1.2);
+    }
+
+    60% {
+        filter: brightness(3);
+    }
+
+    80% {
+        filter: brightness(2);
+    }
+
+    100% {
+        filter: brightness(1);
+    }
+}
+
+/* =========================================================
+   PC
+========================================================= */
+
+@media (min-width: 700px) {
+    h1 {
+        margin-top: 15px;
+        font-size: 32px;
+    }
+
+    #buttons {
+        display: none;
+    }
+
+    #board {
+        width: 300px;
+        height: 600px;
+    }
+}
+
+/* =========================================================
+   スマホ
+========================================================= */
+
+@media (max-width: 699px) {
+    h1 {
+        margin-top: 5px;
+        font-size: 24px;
+    }
+
+    #game-info {
+        margin-bottom: 4px;
+    }
+
+    #game-container {
+        grid-template-columns:
+            65px
+            min(60vw, 300px)
+            65px;
+
+        column-gap: 5px;
+    }
+
+    #left-panel,
+    #hold-panel,
+    #next-panel {
+        width: 65px;
+    }
+
+    #pc-controls {
+        display: none;
+    }
+
+    #hold,
+    #next {
+        width: 58px;
+        height: 58px;
+    }
+
+    .preview-block {
+        width: 11px;
+        height: 11px;
+    }
+
+    .piece-title {
+        font-size: 10px;
+    }
+
+    #buttons {
+        width: 95vw;
+        max-width: 420px;
+
+        margin: 7px auto 0;
+
+        grid-template-columns: repeat(3, 1fr);
+        gap: 7px;
+    }
+
+    button {
+        min-height: 45px;
+        font-size: 18px;
+    }
+
+    #restart-mobile {
+        display: block;
+        min-height: 40px;
+    }
+
+    #buttons button {
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+    }
+
+    #speed-control {
+        width: 95vw;
+        max-width: 420px;
+
+        margin: 5px auto;
+        padding: 5px 8px;
+
+        font-size: 12px;
+    }
+
+    #speed-slider {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+/* =========================================================
+   横向きスマホ
+========================================================= */
+
+@media (max-height: 600px) {
+    h1 {
+        display: none;
+    }
+
+    #game-info {
+        margin-top: 3px;
+    }
+
+    #buttons {
+        margin-top: 4px;
+    }
+
+    button {
+        min-height: 38px;
+    }
 }

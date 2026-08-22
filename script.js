@@ -19,6 +19,16 @@ const ROWS = 20;
 
 let dropSpeed = 2000;
 
+/*
+ * 長押し中の高速落下速度
+ */
+
+const FAST_DROP_SPEED = 80;
+
+let normalDropSpeed = 2000;
+
+let fastDropActive = false;
+
 /* =========================================================
    ゲーム状態
 ========================================================= */
@@ -37,6 +47,29 @@ let paused = false;
 
 let dropTimer = null;
 
+/*
+ * =========================================================
+ * ライン消去エフェクト・連鎖管理
+ * =========================================================
+ */
+
+/*
+ * ライン消去が連続した回数
+ *
+ * 例：
+ * 1回目 → 1
+ * 2回連続 → 2
+ * 3回連続 → 3
+ */
+let clearChain = 0;
+
+
+/*
+ * ライン消去エフェクト処理中かどうか
+ *
+ * エフェクト中に次の操作が入らないようにする
+ */
+let clearEffectProcessing = false;
 
 /* =========================================================
    現在のミノ
@@ -65,7 +98,7 @@ let holdUsed = false;
 
 let history = [];
 
-const MAX_HISTORY = 2;
+const MAX_HISTORY = 10;
 
 
 /* =========================================================
@@ -331,6 +364,8 @@ function drawBoard() {
 
 /* =========================================================
    現在のミノ描画
+   ＋
+   落下予測地点（ゴーストミノ）
 ========================================================= */
 
 function drawCurrentPiece() {
@@ -340,14 +375,41 @@ function drawCurrentPiece() {
 
 
     const boardElement =
-        document.getElementById(
-            "board"
-        );
+        document.getElementById("board");
 
 
     if (!boardElement)
         return;
 
+
+    /*
+     * =====================================================
+     * まず落下予測地点を計算
+     * =====================================================
+     */
+
+    let ghostY =
+        current.y;
+
+
+    while (
+        !collision(
+            current.x,
+            ghostY + 1,
+            current.shape
+        )
+    ) {
+
+        ghostY++;
+
+    }
+
+
+    /*
+     * =====================================================
+     * 落下予測地点を描画
+     * =====================================================
+     */
 
     for (
         let y = 0;
@@ -361,10 +423,6 @@ function drawCurrentPiece() {
             x++
         ) {
 
-            /*
-             * 空白部分は無視
-             */
-
             if (!current.shape[y][x])
                 continue;
 
@@ -374,12 +432,8 @@ function drawCurrentPiece() {
 
 
             const boardY =
-                current.y + y;
+                ghostY + y;
 
-
-            /*
-             * 盤面内だけ描画
-             */
 
             if (
                 boardX >= 0 &&
@@ -394,13 +448,99 @@ function drawCurrentPiece() {
 
 
                 const cell =
-                    boardElement.children[
-                        index
-                    ];
+                    boardElement.children[index];
 
 
                 if (!cell)
                     continue;
+
+
+                /*
+                 * 現在のミノと同じ場所なら
+                 * ゴーストは表示しない
+                 */
+
+                if (
+                    boardY >= current.y &&
+                    boardY <
+                        current.y +
+                        current.shape.length &&
+                    boardX >= current.x &&
+                    boardX <
+                        current.x +
+                        current.shape[0].length
+                ) {
+
+                    /*
+                     * 実際のミノを優先
+                     */
+
+                } else {
+
+                    cell.classList.add("ghost");
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    /*
+     * =====================================================
+     * 現在操作中のミノを描画
+     * =====================================================
+     */
+
+    for (
+        let y = 0;
+        y < current.shape.length;
+        y++
+    ) {
+
+        for (
+            let x = 0;
+            x < current.shape[y].length;
+            x++
+        ) {
+
+            if (!current.shape[y][x])
+                continue;
+
+
+            const boardX =
+                current.x + x;
+
+
+            const boardY =
+                current.y + y;
+
+
+            if (
+                boardX >= 0 &&
+                boardX < COLS &&
+                boardY >= 0 &&
+                boardY < ROWS
+            ) {
+
+                const index =
+                    boardY * COLS +
+                    boardX;
+
+
+                const cell =
+                    boardElement.children[index];
+
+
+                if (!cell)
+                    continue;
+
+
+                cell.classList.remove(
+                    "ghost"
+                );
 
 
                 cell.classList.add(
@@ -473,14 +613,47 @@ function randomPiece() {
 
 function spawnPiece() {
 
-    current =
-        nextPiece ||
-        randomPiece();
+    /*
+     * NEXTを現在のミノにする
+     */
 
+    if (nextPiece) {
+
+        current = {
+
+            color:
+                nextPiece.color,
+
+            shape:
+                nextPiece.shape.map(
+                    row => [...row]
+                ),
+
+            x: 0,
+
+            y: 0
+
+        };
+
+    } else {
+
+        current =
+            randomPiece();
+
+    }
+
+
+    /*
+     * NEXTは必ず新しく作る
+     */
 
     nextPiece =
         randomPiece();
 
+
+    /*
+     * 現在のミノを中央に配置
+     */
 
     current.x =
         Math.floor(
@@ -493,6 +666,10 @@ function spawnPiece() {
 
     current.y = 0;
 
+
+    /*
+     * NEXT表示を更新
+     */
 
     drawNext();
 
@@ -517,13 +694,21 @@ function spawnPiece() {
 
 
     /*
-     * ★重要
+     * =====================================================
+     * 新しいミノが登場した状態を履歴に保存
      *
-     * ミノが登場した瞬間を
-     * 「一手戻す」の基準として保存
+     * 「一手戻す」の基準点
+     * =====================================================
      */
 
     saveHistory();
+
+
+    /*
+     * 盤面を更新
+     */
+
+    drawBoard();
 
 }
 
@@ -651,7 +836,11 @@ function drawHold() {
 
 function holdCurrentPiece() {
 
-    if (gameOver)
+    if (
+        gameOver ||
+        clearEffectProcessing ||
+        !current
+    )
         return;
 
 
@@ -661,41 +850,56 @@ function holdCurrentPiece() {
 
     if (!holdPiece) {
 
-        /*
-         * 現在のミノをHOLDへ
-         */
+    /*
+     * 現在のミノをHOLDへ保存
+     */
 
-        holdPiece = {
+    holdPiece = {
 
-            color:
-                current.color,
+        color:
+            current.color,
 
-            shape:
-                current.shape.map(
-                    row => [...row]
-                ),
+        shape:
+            current.shape.map(
+                row => [...row]
+            ),
 
-            x: 0,
+        x: 0,
 
-            y: 0
+        y: 0
 
-        };
-
-
-        /*
-         * NEXTのミノを現在のミノにする
-         */
-
-        current = nextPiece;
+    };
 
 
-        /*
-         * NEXTを新しく作る
-         */
+    /*
+     * NEXTを現在のミノにする
+     */
 
-        nextPiece = randomPiece();
+    current = {
 
-    }
+        color:
+            nextPiece.color,
+
+        shape:
+            nextPiece.shape.map(
+                row => [...row]
+            ),
+
+        x: 0,
+
+        y: 0
+
+    };
+
+
+    /*
+     * NEXTを新しく生成
+     */
+
+    nextPiece =
+        randomPiece();
+
+}
 
 
     /*
@@ -873,8 +1077,12 @@ function moveHorizontal(
     direction
 ) {
 
-    if (gameOver)
-    return;
+    if (
+        gameOver ||
+        clearEffectProcessing ||
+        !current
+    )
+        return;
 
 
     const newX =
@@ -891,12 +1099,19 @@ function moveHorizontal(
     ) {
 
         current.x =
-    newX;
+            newX;
 
 
-drawBoard();
+        drawBoard();
 
-saveGame();
+
+        /*
+         * 現在のゲーム状態を自動保存
+         *
+         * ※一手戻す履歴には追加しない
+         */
+
+        saveGame();
 
     }
 
@@ -909,7 +1124,11 @@ saveGame();
 
 function moveDown() {
 
-    if (gameOver)
+    if (
+        gameOver ||
+        clearEffectProcessing ||
+        !current
+    )
         return;
 
 
@@ -923,7 +1142,9 @@ function moveDown() {
 
         current.y++;
 
+
         drawBoard();
+
 
         saveGame();
 
@@ -942,7 +1163,11 @@ function moveDown() {
 
 function hardDrop() {
 
-    if (gameOver)
+    if (
+        gameOver ||
+        clearEffectProcessing ||
+        !current
+    )
         return;
 
 
@@ -959,6 +1184,10 @@ function hardDrop() {
     }
 
 
+    /*
+     * 即座に固定
+     */
+
     lockPiece();
 
 }
@@ -969,7 +1198,11 @@ function hardDrop() {
 
 function rotatePiece() {
 
-    if (gameOver)
+    if (
+        gameOver ||
+        clearEffectProcessing ||
+        !current
+    )
         return;
 
 
@@ -1145,8 +1378,27 @@ function rotatePiece() {
    ミノ固定
 ========================================================= */
 
-function lockPiece() {
+async function lockPiece() {
 
+    /*
+     * エフェクト処理中なら何もしない
+     */
+
+    if (clearEffectProcessing)
+        return;
+
+
+    /*
+     * 現在のミノが存在しない場合
+     */
+
+    if (!current)
+        return;
+
+
+    /*
+     * ミノを盤面へ固定
+     */
 
     for (
         let y = 0;
@@ -1160,9 +1412,7 @@ function lockPiece() {
             x++
         ) {
 
-            if (
-                !current.shape[y][x]
-            )
+            if (!current.shape[y][x])
                 continue;
 
 
@@ -1175,6 +1425,8 @@ function lockPiece() {
 
 
             if (
+                boardX >= 0 &&
+                boardX < COLS &&
                 boardY >= 0 &&
                 boardY < ROWS
             ) {
@@ -1189,15 +1441,68 @@ function lockPiece() {
     }
 
 
-    clearLines();
+    /*
+     * 現在操作中のミノを消す
+     */
+
+    current = null;
 
 
-    spawnPiece();
-
+    /*
+     * 固定された盤面だけ表示
+     */
 
     drawBoard();
 
-    drawHold();
+
+    /*
+     * ライン消去
+     *
+     * エフェクト終了まで待つ
+     */
+
+    const cleared =
+        await clearLines();
+
+
+    /*
+     * ラインが消えなかった場合
+     * 連鎖をリセット
+     */
+
+    if (cleared === 0) {
+
+        clearChain = 0;
+
+    }
+
+
+    /*
+     * エフェクト終了後
+     * 次のミノを登場させる
+     */
+
+    if (!gameOver) {
+
+        spawnPiece();
+
+
+        drawBoard();
+
+
+        drawHold();
+
+
+        drawNext();
+
+
+        /*
+         * 自動保存
+         */
+
+        saveGame();
+
+    }
 
 }
 
@@ -1206,10 +1511,19 @@ function lockPiece() {
    ライン消去
 ========================================================= */
 
-function clearLines() {
+async function clearLines() {
 
-    let cleared = 0;
+    /*
+     * 消えるラインの行番号を保存
+     */
+    const clearedRows = [];
 
+
+    /*
+     * まず「どのラインが消えるか」だけ調べる
+     *
+     * この段階ではまだ消さない
+     */
 
     for (
         let y = ROWS - 1;
@@ -1229,7 +1543,6 @@ function clearLines() {
             if (!board[y][x]) {
 
                 full = false;
-
                 break;
 
             }
@@ -1239,67 +1552,432 @@ function clearLines() {
 
         if (full) {
 
-            board.splice(
-                y,
-                1
-            );
-
-
-            board.unshift(
-                new Array(COLS)
-                    .fill(null)
-            );
-
-
-            cleared++;
-
-
-            y++;
+            clearedRows.push(y);
 
         }
 
     }
 
 
-    if (cleared > 0) {
+    /*
+     * ラインがない
+     */
 
-        lines += cleared;
+    if (clearedRows.length === 0) {
 
+        clearChain = 0;
 
-        const scores = [
-
-            0,
-            100,
-            300,
-            500,
-            800
-
-        ];
-
-
-        score +=
-            scores[cleared] *
-            level;
-
-
-        /*
-         * レベル表示だけ変更
-         *
-         * 落下速度は変化しない
-         */
-
-        level =
-            Math.floor(
-                lines / 10
-            ) + 1;
-
-
-        updateInfo();
+        return 0;
 
     }
 
+
+    /*
+     * 連鎖数を増やす
+     */
+
+    clearChain++;
+
+
+    /*
+     * エフェクト処理中
+     */
+
+    clearEffectProcessing = true;
+
+
+    /*
+     * 消えるラインを強調表示
+     */
+
+    showLineClearEffect(
+        clearedRows,
+        clearedRows.length,
+        clearChain
+    );
+
+
+    /*
+     * エフェクトが終わるまで待つ
+     */
+
+    await waitForLineEffect(
+        clearedRows.length,
+        clearChain
+    );
+
+
+    /*
+     * ラインを実際に削除
+     */
+
+    /*
+     * 下の行から削除する
+     *
+     * 行番号がずれないように
+     * 降順で処理
+     */
+
+    clearedRows
+        .sort((a, b) => b - a)
+        .forEach(
+            function(y) {
+
+                board.splice(
+                    y,
+                    1
+                );
+
+                board.unshift(
+                    new Array(COLS)
+                        .fill(null)
+                );
+
+            }
+        );
+
+
+    /*
+     * スコア・ライン数更新
+     */
+
+    const cleared =
+        clearedRows.length;
+
+
+    lines += cleared;
+
+
+    const scores = [
+
+        0,
+        100,
+        300,
+        500,
+        800
+
+    ];
+
+
+    score +=
+        scores[cleared] *
+        level;
+
+
+    /*
+     * レベル更新
+     */
+
+    level =
+        Math.floor(
+            lines / 10
+        ) + 1;
+
+
+    updateInfo();
+
+
+    /*
+     * 全消し判定
+     */
+
+    let boardEmpty = true;
+
+
+    for (
+        let y = 0;
+        y < ROWS;
+        y++
+    ) {
+
+        for (
+            let x = 0;
+            x < COLS;
+            x++
+        ) {
+
+            if (board[y][x]) {
+
+                boardEmpty = false;
+
+                break;
+
+            }
+
+        }
+
+
+        if (!boardEmpty)
+            break;
+
+    }
+
+
+    /*
+     * 全消しなら追加演出
+     */
+
+    if (boardEmpty) {
+
+        playPerfectClearEffect(
+            clearChain
+        );
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    500
+                )
+        );
+
+    }
+
+
+    /*
+     * エフェクト終了
+     */
+
+    clearEffectProcessing = false;
+
+
+    /*
+     * 次の処理へ
+     */
+
+    drawBoard();
+
+
+    saveGame();
+
+
+    return cleared;
+
 }
 
+/* =========================================================
+   ライン消去エフェクト表示
+========================================================= */
+
+function showLineClearEffect(
+    rows,
+    lineCount,
+    chain
+) {
+
+    const boardElement =
+        document.getElementById("board");
+
+
+    if (!boardElement)
+        return;
+
+
+    /*
+     * 既存エフェクトを削除
+     */
+
+    boardElement
+        .classList.remove(
+            "line-clear-effect",
+            "combo-clear-effect",
+            "perfect-clear-effect",
+            "chain-effect"
+        );
+
+
+    /*
+     * 強制的にアニメーションを再スタート
+     */
+
+    void boardElement.offsetWidth;
+
+
+    /*
+     * 連鎖段階
+     *
+     * 1～5段階程度で盛り上げる
+     */
+
+    const chainLevel =
+        Math.min(chain, 5);
+
+
+    boardElement.dataset.chain =
+        chainLevel;
+
+
+    boardElement.dataset.lines =
+        lineCount;
+
+
+    /*
+     * 盤面全体の演出
+     */
+
+    if (lineCount === 1) {
+
+        boardElement.classList.add(
+            "line-clear-effect"
+        );
+
+    } else {
+
+        boardElement.classList.add(
+            "combo-clear-effect"
+        );
+
+    }
+
+
+    /*
+     * 連鎖演出
+     */
+
+    if (chain > 1) {
+
+        boardElement.classList.add(
+            "chain-effect"
+        );
+
+    }
+
+
+    /*
+     * 消える行そのものを強調
+     */
+
+    rows.forEach(
+        function(row) {
+
+            const rowElement =
+                document.createElement("div");
+
+
+            rowElement.className =
+                "line-clear-row";
+
+
+            /*
+             * CSSで盤面20行のうち
+             * 該当する行の位置へ配置
+             */
+
+            rowElement.style.top =
+                (
+                    row / ROWS * 100
+                ) + "%";
+
+
+            rowElement.style.height =
+                (
+                    100 / ROWS
+                ) + "%";
+
+
+            /*
+             * 連鎖段階をCSSへ渡す
+             */
+
+            rowElement.dataset.chain =
+                chainLevel;
+
+
+            rowElement.dataset.lines =
+                lineCount;
+
+
+            boardElement.appendChild(
+                rowElement
+            );
+
+        }
+    );
+
+
+    /*
+     * キラキラ音
+     */
+
+    playClearSound(
+        lineCount,
+        chain
+    );
+
+}
+
+
+/* =========================================================
+   ラインエフェクト待機
+========================================================= */
+
+function waitForLineEffect(
+    lineCount,
+    chain
+) {
+
+    /*
+     * 1段
+     * → 約500ms
+     *
+     * 4段・高連鎖
+     * → 少し長くする
+     */
+
+    const duration =
+        500 +
+        Math.min(lineCount - 1, 3) * 100 +
+        Math.min(chain - 1, 4) * 80;
+
+
+    return new Promise(
+        function(resolve) {
+
+            setTimeout(
+                function() {
+
+                    /*
+                     * 行エフェクトを削除
+                     */
+
+                    const boardElement =
+                        document.getElementById(
+                            "board"
+                        );
+
+
+                    if (boardElement) {
+
+                        boardElement
+                            .querySelectorAll(
+                                ".line-clear-row"
+                            )
+                            .forEach(
+                                element =>
+                                    element.remove()
+                            );
+
+
+                        boardElement
+                            .classList.remove(
+                                "line-clear-effect",
+                                "combo-clear-effect",
+                                "chain-effect"
+                            );
+
+                    }
+
+
+                    resolve();
+
+                },
+                duration
+            );
+
+        }
+    );
+
+}
 
 /* =========================================================
    情報更新
@@ -1555,24 +2233,29 @@ function undoMove() {
 
 
     /*
-     * 現在のミノが登場した直後の状態を
-     * 1つ前の履歴として復元する
+     * 履歴がない場合
      */
 
-    if (history.length < 2)
+    if (history.length === 0)
         return;
 
 
     /*
-     * 現在のミノの履歴を削除
+     * 現在の状態を履歴から取り除く
+     *
+     * 最後に保存された状態は
+     * 現在操作中のミノが登場した状態
      */
 
-    history.pop();
+    if (history.length > 1) {
+
+        history.pop();
+
+    }
 
 
     /*
-     * 1つ前のミノの
-     * 登場直後の状態
+     * 1つ前の状態を取得
      */
 
     const state =
@@ -1581,23 +2264,47 @@ function undoMove() {
         ];
 
 
+    if (!state)
+        return;
+
+
+    /*
+     * 盤面復元
+     */
+
     board =
         state.board.map(
             row => [...row]
         );
 
 
+    /*
+     * スコア復元
+     */
+
     score =
         state.score;
 
+
+    /*
+     * ライン数復元
+     */
 
     lines =
         state.lines;
 
 
+    /*
+     * レベル復元
+     */
+
     level =
         state.level;
 
+
+    /*
+     * 現在ミノ復元
+     */
 
     current =
         state.current
@@ -1621,6 +2328,10 @@ function undoMove() {
             : null;
 
 
+    /*
+     * NEXT復元
+     */
+
     nextPiece =
         state.nextPiece
             ? {
@@ -1642,6 +2353,10 @@ function undoMove() {
             }
             : null;
 
+
+    /*
+     * HOLD復元
+     */
 
     holdPiece =
         state.holdPiece
@@ -1666,11 +2381,16 @@ function undoMove() {
 
 
     /*
-     * HOLD回数制限は使用しない
+     * HOLD状態
      */
 
-    holdUsed = false;
+    holdUsed =
+        state.holdUsed || false;
 
+
+    /*
+     * 画面更新
+     */
 
     updateInfo();
 
@@ -1680,11 +2400,16 @@ function undoMove() {
 
     drawNext();
 
+
+    /*
+     * タイマー再開
+     */
+
     restartTimer();
 
 
     /*
-     * 一手戻した状態を保存
+     * 自動保存
      */
 
     saveGame();
@@ -2619,7 +3344,7 @@ let lastMoveX = 0;
  * 小さくすると細かく移動しやすくなる
  */
 
-const swipeDistance = 30;
+const swipeDistance = 36;
 
 
 /*
@@ -3001,7 +3726,6 @@ document.getElementById(
     }
 );
 
-
 /* =========================================================
    ゲーム開始
 ========================================================= */
@@ -3027,4 +3751,665 @@ setInterval(
 
     },
     1000
+);
+
+/* =========================================================
+   ライン消去・全消しエフェクト
+========================================================= */
+
+let effectAudioContext = null;
+
+
+/*
+ * 効果音用AudioContext
+ */
+
+function getAudioContext() {
+
+    if (!effectAudioContext) {
+
+        effectAudioContext =
+            new (
+                window.AudioContext ||
+                window.webkitAudioContext
+            )();
+
+    }
+
+    if (
+        effectAudioContext.state ===
+        "suspended"
+    ) {
+
+        effectAudioContext.resume();
+
+    }
+
+    return effectAudioContext;
+
+}
+
+
+/*
+ * 効果音を鳴らす
+ *
+ * type
+ * 1 = 通常ライン
+ * 2 = 複数ライン
+ * 3 = 全消し
+ */
+
+/* =========================================================
+   キラキラ系ライン消去効果音
+========================================================= */
+
+function playClearSound(
+    lineCount,
+    chain
+) {
+
+    try {
+
+        const ctx =
+            getAudioContext();
+
+
+        const now =
+            ctx.currentTime;
+
+
+        /*
+         * ライン数＋連鎖数で
+         * 音の高さを上げる
+         */
+
+        const lineBonus =
+            (lineCount - 1) * 2;
+
+
+        const chainBonus =
+            Math.min(chain - 1, 5) * 2;
+
+
+        /*
+         * 基本音階
+         *
+         * 上に行くほど
+         * 「キラキラ・盛り上がる」
+         */
+
+        const notes = [
+
+            880,
+            1046,
+            1174,
+            1318,
+            1568,
+            1760
+
+        ];
+
+
+        const noteCount =
+            Math.min(
+                3 + lineCount + chainBonus,
+                notes.length
+            );
+
+
+        for (
+            let i = 0;
+            i < noteCount;
+            i++
+        ) {
+
+            const frequency =
+                notes[
+                    Math.min(
+                        i + lineBonus,
+                        notes.length - 1
+                    )
+                ];
+
+
+            const startTime =
+                now +
+                i * 0.055;
+
+
+            /*
+             * メイン音
+             */
+
+            const osc =
+                ctx.createOscillator();
+
+
+            const gain =
+                ctx.createGain();
+
+
+            osc.type =
+                "sine";
+
+
+            osc.frequency.setValueAtTime(
+                frequency,
+                startTime
+            );
+
+
+            osc.frequency.exponentialRampToValueAtTime(
+                frequency * 1.08,
+                startTime + 0.12
+            );
+
+
+            gain.gain.setValueAtTime(
+                0.0001,
+                startTime
+            );
+
+
+            gain.gain.exponentialRampToValueAtTime(
+                0.12 +
+                Math.min(chain, 5) * 0.015,
+                startTime + 0.008
+            );
+
+
+            gain.gain.exponentialRampToValueAtTime(
+                0.0001,
+                startTime + 0.22
+            );
+
+
+            osc.connect(gain);
+
+            gain.connect(
+                ctx.destination
+            );
+
+
+            osc.start(
+                startTime
+            );
+
+
+            osc.stop(
+                startTime + 0.25
+            );
+
+
+            /*
+             * 高いキラキラ音を追加
+             */
+
+            const sparkle =
+                ctx.createOscillator();
+
+
+            const sparkleGain =
+                ctx.createGain();
+
+
+            sparkle.type =
+                "sine";
+
+
+            sparkle.frequency.setValueAtTime(
+                frequency * 2,
+                startTime
+            );
+
+
+            sparkle.frequency.exponentialRampToValueAtTime(
+                frequency * 2.5,
+                startTime + 0.1
+            );
+
+
+            sparkleGain.gain.setValueAtTime(
+                0.0001,
+                startTime
+            );
+
+
+            sparkleGain.gain.exponentialRampToValueAtTime(
+                0.045,
+                startTime + 0.01
+            );
+
+
+            sparkleGain.gain.exponentialRampToValueAtTime(
+                0.0001,
+                startTime + 0.16
+            );
+
+
+            sparkle.connect(
+                sparkleGain
+            );
+
+            sparkleGain.connect(
+                ctx.destination
+            );
+
+
+            sparkle.start(
+                startTime
+            );
+
+
+            sparkle.stop(
+                startTime + 0.18
+            );
+
+        }
+
+
+        /*
+         * 連鎖2以上なら
+         * 最後に上昇音を追加
+         */
+
+        if (chain >= 2) {
+
+            const chainOsc =
+                ctx.createOscillator();
+
+
+            const chainGain =
+                ctx.createGain();
+
+
+            const startTime =
+                now +
+                noteCount * 0.055;
+
+
+            chainOsc.type =
+                "triangle";
+
+
+            chainOsc.frequency.setValueAtTime(
+                1000 + chain * 100,
+                startTime
+            );
+
+
+            chainOsc.frequency.exponentialRampToValueAtTime(
+                1800 + chain * 150,
+                startTime + 0.22
+            );
+
+
+            chainGain.gain.setValueAtTime(
+                0.0001,
+                startTime
+            );
+
+
+            chainGain.gain.exponentialRampToValueAtTime(
+                0.12,
+                startTime + 0.01
+            );
+
+
+            chainGain.gain.exponentialRampToValueAtTime(
+                0.0001,
+                startTime + 0.35
+            );
+
+
+            chainOsc.connect(
+                chainGain
+            );
+
+            chainGain.connect(
+                ctx.destination
+            );
+
+
+            chainOsc.start(
+                startTime
+            );
+
+
+            chainOsc.stop(
+                startTime + 0.38
+            );
+
+        }
+
+    } catch (error) {
+
+        console.log(
+            "キラキラ効果音を再生できませんでした",
+            error
+        );
+
+    }
+
+}
+
+/* =========================================================
+   全消しエフェクト
+========================================================= */
+
+function playPerfectClearEffect(
+    chain
+) {
+
+    const boardElement =
+        document.getElementById("board");
+
+
+    if (!boardElement)
+        return;
+
+
+    boardElement.classList.add(
+        "perfect-clear-effect"
+    );
+
+
+    boardElement.dataset.chain =
+        Math.min(chain, 5);
+
+
+    /*
+     * 連鎖が高いほど
+     * 全消し音も盛り上げる
+     */
+
+    try {
+
+        const ctx =
+            getAudioContext();
+
+
+        const now =
+            ctx.currentTime;
+
+
+        const frequencies = [
+
+            1046,
+            1318,
+            1568,
+            2093,
+            2637
+
+        ];
+
+
+        frequencies.forEach(
+            function(
+                frequency,
+                index
+            ) {
+
+                const osc =
+                    ctx.createOscillator();
+
+
+                const gain =
+                    ctx.createGain();
+
+
+                const startTime =
+                    now +
+                    index * 0.08;
+
+
+                osc.type =
+                    "sine";
+
+
+                osc.frequency.setValueAtTime(
+                    frequency,
+                    startTime
+                );
+
+
+                osc.frequency.exponentialRampToValueAtTime(
+                    frequency * 1.2,
+                    startTime + 0.25
+                );
+
+
+                gain.gain.setValueAtTime(
+                    0.0001,
+                    startTime
+                );
+
+
+                gain.gain.exponentialRampToValueAtTime(
+                    0.16,
+                    startTime + 0.01
+                );
+
+
+                gain.gain.exponentialRampToValueAtTime(
+                    0.0001,
+                    startTime + 0.45
+                );
+
+
+                osc.connect(gain);
+
+                gain.connect(
+                    ctx.destination
+                );
+
+
+                osc.start(
+                    startTime
+                );
+
+
+                osc.stop(
+                    startTime + 0.5
+                );
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.log(
+            "全消し効果音を再生できませんでした",
+            error
+        );
+
+    }
+
+
+    /*
+     * アニメーション終了後にクラス削除
+     */
+
+    setTimeout(
+        function() {
+
+            boardElement.classList.remove(
+                "perfect-clear-effect"
+            );
+
+        },
+        900
+    );
+
+}
+
+/* =========================================================
+   スマホ：盤面長押し高速落下
+========================================================= */
+
+let boardLongPressTimer = null;
+
+
+/*
+ * 長押し開始
+ */
+
+boardElement.addEventListener(
+    "pointerdown",
+    function(event) {
+
+        /*
+         * ゲームオーバー中は何もしない
+         */
+
+        if (gameOver)
+            return;
+
+
+        /*
+         * すでに長押し中なら何もしない
+         */
+
+        if (fastDropActive)
+            return;
+
+
+        /*
+         * 盤面のスワイプ開始位置は
+         * 既存処理をそのまま使用
+         */
+
+        touchStartX =
+            event.clientX;
+
+        touchStartY =
+            event.clientY;
+
+
+        /*
+         * 少し待ってから
+         * 長押し判定
+         */
+
+        boardLongPressTimer =
+            setTimeout(
+                function() {
+
+                    /*
+                     * 長押し中
+                     */
+
+                    fastDropActive = true;
+
+
+                    /*
+                     * 現在の速度を保存
+                     */
+
+                    normalDropSpeed =
+                        dropSpeed;
+
+
+                    /*
+                     * 高速化
+                     */
+
+                    dropSpeed =
+                        FAST_DROP_SPEED;
+
+
+                    /*
+                     * タイマーを高速化
+                     */
+
+                    if (!paused) {
+
+                        restartTimer();
+
+                    }
+
+                },
+                350
+            );
+
+    }
+);
+
+
+/*
+ * 指を離した
+ */
+
+function stopBoardLongPress() {
+
+    /*
+     * 長押し判定を解除
+     */
+
+    clearTimeout(
+        boardLongPressTimer
+    );
+
+
+    boardLongPressTimer = null;
+
+
+    /*
+     * 高速落下中なら
+     * 元の速度に戻す
+     */
+
+    if (fastDropActive) {
+
+        fastDropActive = false;
+
+
+        dropSpeed =
+            normalDropSpeed;
+
+
+        /*
+         * ゲームオーバーでなければ
+         * 通常速度に戻す
+         */
+
+        if (!gameOver) {
+
+            restartTimer();
+
+        }
+
+    }
+
+}
+
+
+/*
+ * 指を離した
+ */
+
+boardElement.addEventListener(
+    "pointerup",
+    stopBoardLongPress
+);
+
+
+/*
+ * 指がキャンセルされた
+ */
+
+boardElement.addEventListener(
+    "pointercancel",
+    stopBoardLongPress
+);
+
+
+/*
+ * 指が盤面外へ出た
+ */
+
+boardElement.addEventListener(
+    "pointerleave",
+    stopBoardLongPress
 );
