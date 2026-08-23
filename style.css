@@ -111,6 +111,8 @@ h1 {
 #board {
     position: relative;
 
+    contain: layout paint;
+
     width: min(60vw, 300px);
     height: calc(min(60vw, 300px) * 2);
 
@@ -153,45 +155,58 @@ h1 {
     border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/*
+ * ゴースト本体
+ *
+ * 通常ミノと同じ色を薄く表示
+ */
+
 .cell.ghost::after {
     content: "";
+
     position: absolute;
     inset: 2px;
 
-    border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 2px;
 
     opacity: 0.45;
 }
 
-/* ゴーストミノ：本体と同じ色の薄い色 */
+/* ゴーストの色 */
 
 .cell.ghost.I::after {
-    background: rgba(0, 255, 255, 0.5);
+    background: rgba(0, 255, 255, 0.45);
+    border: 1px solid rgba(0, 255, 255, 0.8);
 }
 
 .cell.ghost.O::after {
-    background: rgba(255, 255, 0, 0.5);
+    background: rgba(255, 255, 0, 0.45);
+    border: 1px solid rgba(255, 255, 0, 0.8);
 }
 
 .cell.ghost.T::after {
-    background: rgba(170, 0, 255, 0.5);
+    background: rgba(170, 0, 255, 0.45);
+    border: 1px solid rgba(170, 0, 255, 0.8);
 }
 
 .cell.ghost.S::after {
-    background: rgba(0, 204, 68, 0.5);
+    background: rgba(0, 204, 68, 0.45);
+    border: 1px solid rgba(0, 204, 68, 0.8);
 }
 
 .cell.ghost.Z::after {
-    background: rgba(255, 51, 51, 0.5);
+    background: rgba(255, 51, 51, 0.45);
+    border: 1px solid rgba(255, 51, 51, 0.8);
 }
 
 .cell.ghost.J::after {
-    background: rgba(51, 102, 255, 0.5);
+    background: rgba(51, 102, 255, 0.45);
+    border: 1px solid rgba(51, 102, 255, 0.8);
 }
 
 .cell.ghost.L::after {
-    background: rgba(255, 136, 0, 0.5);
+    background: rgba(255, 136, 0, 0.45);
+    border: 1px solid rgba(255, 136, 0, 0.8);
 }
 
 /* =========================================================
@@ -469,12 +484,19 @@ button:active {
 
     animation:
         lineClearRowFlash
-        0.55s
+        0.42s
         ease-out
         forwards;
 }
 
+/*
+ * ライン消去の光
+ *
+ * エフェクトが最大まで光った直後に
+ * 実際のラインが消えるようにする
+ */
 @keyframes lineClearRowFlash {
+
     0% {
         opacity: 0.2;
         transform: scaleX(0.7);

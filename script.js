@@ -266,86 +266,132 @@ function drawBoard() {
         document.getElementById("board");
 
 
-    /*
-     * HTMLに盤面が存在しない場合
-     */
-
     if (!boardElement)
         return;
 
 
     /*
-     * 盤面を一度空にする
+     * =====================================================
+     * 初回だけ200セルを作成
+     *
+     * 以降は同じセルを再利用する
+     * =====================================================
      */
 
-    boardElement.innerHTML = "";
+    if (
+        boardElement.children.length !==
+        ROWS * COLS
+    ) {
+
+        boardElement.innerHTML = "";
+
+
+        for (let y = 0; y < ROWS; y++) {
+
+            for (let x = 0; x < COLS; x++) {
+
+                const cell =
+                    document.createElement("div");
+
+
+                cell.className =
+                    "cell";
+
+
+                /*
+                 * 背景を交互にする
+                 */
+
+                cell.classList.add(
+                    x % 2 === 0
+                        ? "even-column"
+                        : "odd-column"
+                );
+
+
+                boardElement.appendChild(
+                    cell
+                );
+
+            }
+
+        }
+
+    }
 
 
     /*
-     * 20行 × 10列を作る
+     * =====================================================
+     * 既存セルの状態をリセット
+     * =====================================================
      */
 
+    const cells =
+        boardElement.children;
+
+
     for (
-        let y = 0;
-        y < ROWS;
-        y++
+        let i = 0;
+        i < cells.length;
+        i++
     ) {
 
-        for (
-            let x = 0;
-            x < COLS;
-            x++
-        ) {
+        const cell =
+            cells[i];
+
+
+        /*
+         * ghost以外の状態をリセット
+         */
+
+        cell.classList.remove(
+            "filled",
+            "ghost",
+            "I",
+            "O",
+            "T",
+            "S",
+            "Z",
+            "J",
+            "L"
+        );
+
+    }
+
+
+    /*
+     * =====================================================
+     * 固定ミノを描画
+     * =====================================================
+     */
+
+    for (let y = 0; y < ROWS; y++) {
+
+        for (let x = 0; x < COLS; x++) {
+
+            const value =
+                board[y][x];
+
+
+            if (!value)
+                continue;
+
+
+            const index =
+                y * COLS + x;
+
 
             const cell =
-                document.createElement("div");
+                cells[index];
 
 
-            cell.className =
-                "cell";
+            cell.classList.add(
+                "filled"
+            );
 
 
-            /*
-             * 背景を交互にする
-             */
-
-            if (x % 2 === 0) {
-
-                cell.classList.add(
-                    "even-column"
-                );
-
-            } else {
-
-                cell.classList.add(
-                    "odd-column"
-                );
-
-            }
-
-
-            /*
-             * すでに設置されたミノ
-             */
-
-            if (
-                board[y] &&
-                board[y][x]
-            ) {
-
-                cell.classList.add(
-                    "filled"
-                );
-
-                cell.classList.add(
-                    board[y][x]
-                );
-
-            }
-
-
-            boardElement.appendChild(
-                cell
+            cell.classList.add(
+                value
             );
 
         }
@@ -354,7 +400,9 @@ function drawBoard() {
 
 
     /*
-     * 現在操作中のミノを描画
+     * =====================================================
+     * 現在のミノ＋ゴースト
+     * =====================================================
      */
 
     drawCurrentPiece();
@@ -478,6 +526,7 @@ function drawCurrentPiece() {
                 } else {
 
                     cell.classList.add("ghost");
+                    cell.classList.add(current.color);
 
                 }
 
@@ -1397,7 +1446,9 @@ async function lockPiece() {
 
 
     /*
+     * =====================================================
      * ミノを盤面へ固定
+     * =====================================================
      */
 
     for (
@@ -1442,23 +1493,38 @@ async function lockPiece() {
 
 
     /*
+     * =====================================================
      * 現在操作中のミノを消す
+     * =====================================================
      */
 
     current = null;
 
 
     /*
-     * 固定された盤面だけ表示
+     * 固定された盤面を表示
      */
 
     drawBoard();
 
 
     /*
+     * =====================================================
      * ライン消去
      *
-     * エフェクト終了まで待つ
+     * ラインが揃っていれば
+     *
+     * エフェクト
+     * ↓
+     * ライン消去
+     * ↓
+     * 盤面を詰める
+     *
+     * まで完了する。
+     *
+     * ラインがなければ
+     * そのまま0が返る。
+     * =====================================================
      */
 
     const cleared =
@@ -1466,32 +1532,20 @@ async function lockPiece() {
 
 
     /*
-     * ラインが消えなかった場合
-     * 連鎖をリセット
-     */
-
-    if (cleared === 0) {
-
-        clearChain = 0;
-
-    }
-
-
-    /*
-     * エフェクト終了後
-     * 次のミノを登場させる
+     * =====================================================
+     * 次のミノを出す
+     *
+     * ライン消去エフェクトがある場合は
+     * clearLines()のawaitが終わってから
+     * 次のミノが登場する。
+     * =====================================================
      */
 
     if (!gameOver) {
 
         spawnPiece();
 
-
-        drawBoard();
-
-
         drawHold();
-
 
         drawNext();
 
@@ -1509,36 +1563,28 @@ async function lockPiece() {
 
 /* =========================================================
    ライン消去
+   複数ラインは1本ずつ
+   「エフェクト → 消去 → 盤面を詰める」
+   の順番でテンポよく処理
 ========================================================= */
 
 async function clearLines() {
 
     /*
-     * 消えるラインの行番号を保存
-     */
-    const clearedRows = [];
-
-
-    /*
-     * まず「どのラインが消えるか」だけ調べる
+     * =====================================================
+     * まず、今回何ライン消えるかを確認
      *
-     * この段階ではまだ消さない
+     * ここではまだ消さない
+     * =====================================================
      */
 
-    for (
-        let y = ROWS - 1;
-        y >= 0;
-        y--
-    ) {
+    const initialClearedRows = [];
+
+    for (let y = ROWS - 1; y >= 0; y--) {
 
         let full = true;
 
-
-        for (
-            let x = 0;
-            x < COLS;
-            x++
-        ) {
+        for (let x = 0; x < COLS; x++) {
 
             if (!board[y][x]) {
 
@@ -1549,10 +1595,9 @@ async function clearLines() {
 
         }
 
-
         if (full) {
 
-            clearedRows.push(y);
+            initialClearedRows.push(y);
 
         }
 
@@ -1560,10 +1605,12 @@ async function clearLines() {
 
 
     /*
+     * =====================================================
      * ラインがない
+     * =====================================================
      */
 
-    if (clearedRows.length === 0) {
+    if (initialClearedRows.length === 0) {
 
         clearChain = 0;
 
@@ -1573,89 +1620,205 @@ async function clearLines() {
 
 
     /*
+     * =====================================================
      * 連鎖数を増やす
+     * =====================================================
      */
 
     clearChain++;
 
 
     /*
-     * エフェクト処理中
+     * =====================================================
+     * ライン消去処理中
+     *
+     * エフェクト中の操作を禁止
+     * =====================================================
      */
 
     clearEffectProcessing = true;
 
 
     /*
-     * 消えるラインを強調表示
+     * =====================================================
+     * 今回消えるライン数
+     * =====================================================
      */
 
-    showLineClearEffect(
-        clearedRows,
-        clearedRows.length,
-        clearChain
-    );
+    const clearCount =
+        initialClearedRows.length;
 
 
     /*
-     * エフェクトが終わるまで待つ
-     */
-
-    await waitForLineEffect(
-        clearedRows.length,
-        clearChain
-    );
-
-
-    /*
-     * ラインを実際に削除
-     */
-
-    /*
-     * 下の行から削除する
+     * =====================================================
+     * 1ラインずつ高速処理
      *
-     * 行番号がずれないように
-     * 降順で処理
+     * エフェクト
+     * ↓
+     * 消去
+     * ↓
+     * 盤面を詰める
+     * ↓
+     * 次のライン
+     *
+     * 約2倍のテンポで処理
+     * =====================================================
      */
 
-    clearedRows
-        .sort((a, b) => b - a)
-        .forEach(
-            function(y) {
+    for (
+        let i = 0;
+        i < clearCount;
+        i++
+    ) {
 
-                board.splice(
-                    y,
-                    1
-                );
+        /*
+         * =================================================
+         * 現在の盤面から
+         * 一番下にある完成ラインを探す
+         * =================================================
+         */
 
-                board.unshift(
-                    new Array(COLS)
-                        .fill(null)
-                );
+        let targetRow = -1;
+
+
+        for (
+            let y = ROWS - 1;
+            y >= 0;
+            y--
+        ) {
+
+            let full = true;
+
+            for (
+                let x = 0;
+                x < COLS;
+                x++
+            ) {
+
+                if (!board[y][x]) {
+
+                    full = false;
+                    break;
+
+                }
 
             }
+
+
+            if (full) {
+
+                targetRow = y;
+
+                break;
+
+            }
+
+        }
+
+
+        /*
+         * 念のため
+         */
+
+        if (targetRow === -1) {
+            break;
+        }
+
+
+        /*
+         * =================================================
+         * 1ライン分のエフェクト
+         *
+         * 約2倍のスピード
+         * =================================================
+         */
+
+        await showSingleLineClearEffect(
+            targetRow,
+            clearChain,
+            i + 1,
+            clearCount
         );
 
 
+        /*
+         * =================================================
+         * エフェクト後にラインを削除
+         * =================================================
+         */
+
+        board.splice(
+            targetRow,
+            1
+        );
+
+
+        /*
+         * =================================================
+         * 上に空行を1つ追加
+         * =================================================
+         */
+
+        board.unshift(
+            new Array(COLS).fill(null)
+        );
+
+
+        /*
+         * =================================================
+         * ライン消去直後の盤面を表示
+         * =================================================
+         */
+
+        drawBoard();
+
+
+        /*
+         * =================================================
+         * 次のラインまでの間隔
+         *
+         * 90ms → 45ms
+         *
+         * 約2倍のテンポ
+         * =================================================
+         */
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    45
+                )
+        );
+
+    }
+
+
     /*
-     * スコア・ライン数更新
+     * =====================================================
+     * 消去ライン数
+     * =====================================================
      */
 
     const cleared =
-        clearedRows.length;
+        clearCount;
 
+
+    /*
+     * =====================================================
+     * スコア
+     * =====================================================
+     */
 
     lines += cleared;
 
 
     const scores = [
-
         0,
         100,
         300,
         500,
         800
-
     ];
 
 
@@ -1665,7 +1828,9 @@ async function clearLines() {
 
 
     /*
-     * レベル更新
+     * =====================================================
+     * レベル
+     * =====================================================
      */
 
     level =
@@ -1678,7 +1843,9 @@ async function clearLines() {
 
 
     /*
+     * =====================================================
      * 全消し判定
+     * =====================================================
      */
 
     let boardEmpty = true;
@@ -1699,7 +1866,6 @@ async function clearLines() {
             if (board[y][x]) {
 
                 boardEmpty = false;
-
                 break;
 
             }
@@ -1714,7 +1880,9 @@ async function clearLines() {
 
 
     /*
-     * 全消しなら追加演出
+     * =====================================================
+     * 全消し
+     * =====================================================
      */
 
     if (boardEmpty) {
@@ -1723,11 +1891,18 @@ async function clearLines() {
             clearChain
         );
 
+
+        /*
+         * 全消し演出も少し短縮
+         *
+         * 500ms → 300ms
+         */
+
         await new Promise(
             resolve =>
                 setTimeout(
                     resolve,
-                    500
+                    300
                 )
         );
 
@@ -1735,18 +1910,24 @@ async function clearLines() {
 
 
     /*
+     * =====================================================
      * エフェクト終了
+     * =====================================================
      */
 
     clearEffectProcessing = false;
 
 
     /*
-     * 次の処理へ
+     * 最終盤面を描画
      */
 
     drawBoard();
 
+
+    /*
+     * 自動保存
+     */
 
     saveGame();
 
@@ -1756,13 +1937,42 @@ async function clearLines() {
 }
 
 /* =========================================================
-   ライン消去エフェクト表示
+   1ライン消去エフェクト
+
+   1本目
+   ↓
+   エフェクト
+   ↓
+   消去
+   ↓
+   盤面を詰める
+   ↓
+   2本目
+
+   という流れで使用する
 ========================================================= */
 
-function showLineClearEffect(
-    rows,
-    lineCount,
-    chain
+/* =========================================================
+   1ライン消去エフェクト
+
+   1本目
+   ↓
+   高速エフェクト
+   ↓
+   消去
+   ↓
+   盤面を詰める
+   ↓
+   2本目
+
+   約2倍のテンポで処理
+========================================================= */
+
+async function showSingleLineClearEffect(
+    row,
+    chain,
+    clearNumber,
+    totalClearCount
 ) {
 
     const boardElement =
@@ -1774,33 +1984,53 @@ function showLineClearEffect(
 
 
     /*
-     * 既存エフェクトを削除
+     * =====================================================
+     * 既存のラインエフェクトを削除
+     * =====================================================
      */
 
     boardElement
-        .classList.remove(
-            "line-clear-effect",
-            "combo-clear-effect",
-            "perfect-clear-effect",
-            "chain-effect"
+        .querySelectorAll(
+            ".line-clear-row"
+        )
+        .forEach(
+            element =>
+                element.remove()
         );
 
 
     /*
-     * 強制的にアニメーションを再スタート
+     * =====================================================
+     * 盤面エフェクトをリセット
+     * =====================================================
+     */
+
+    boardElement.classList.remove(
+        "line-clear-effect",
+        "combo-clear-effect",
+        "perfect-clear-effect",
+        "chain-effect"
+    );
+
+
+    /*
+     * CSSアニメーションを再スタート
      */
 
     void boardElement.offsetWidth;
 
 
     /*
-     * 連鎖段階
-     *
-     * 1～5段階程度で盛り上げる
+     * =====================================================
+     * 連鎖情報
+     * =====================================================
      */
 
     const chainLevel =
-        Math.min(chain, 5);
+        Math.min(
+            chain,
+            5
+        );
 
 
     boardElement.dataset.chain =
@@ -1808,20 +2038,36 @@ function showLineClearEffect(
 
 
     boardElement.dataset.lines =
-        lineCount;
+        totalClearCount;
 
 
     /*
-     * 盤面全体の演出
+     * =====================================================
+     * 1ラインのみの場合
+     * =====================================================
      */
 
-    if (lineCount === 1) {
+    if (
+        clearNumber === 1 &&
+        totalClearCount === 1
+    ) {
 
         boardElement.classList.add(
             "line-clear-effect"
         );
 
-    } else {
+    }
+
+
+    /*
+     * =====================================================
+     * 複数ラインの場合
+     * =====================================================
+     */
+
+    else if (
+        totalClearCount > 1
+    ) {
 
         boardElement.classList.add(
             "combo-clear-effect"
@@ -1831,10 +2077,16 @@ function showLineClearEffect(
 
 
     /*
-     * 連鎖演出
+     * =====================================================
+     * 2ライン目以降
+     *
+     * 連続消去エフェクト
+     * =====================================================
      */
 
-    if (chain > 1) {
+    if (
+        clearNumber >= 2
+    ) {
 
         boardElement.classList.add(
             "chain-effect"
@@ -1844,137 +2096,127 @@ function showLineClearEffect(
 
 
     /*
-     * 消える行そのものを強調
+     * =====================================================
+     * ラインそのものの光
+     * =====================================================
      */
 
-    rows.forEach(
-        function(row) {
-
-            const rowElement =
-                document.createElement("div");
+    const rowElement =
+        document.createElement("div");
 
 
-            rowElement.className =
-                "line-clear-row";
+    rowElement.className =
+        "line-clear-row";
 
 
-            /*
-             * CSSで盤面20行のうち
-             * 該当する行の位置へ配置
-             */
+    /*
+     * 現在の盤面上の位置
+     */
 
-            rowElement.style.top =
-                (
-                    row / ROWS * 100
-                ) + "%";
-
-
-            rowElement.style.height =
-                (
-                    100 / ROWS
-                ) + "%";
+    rowElement.style.top =
+        (
+            row / ROWS * 100
+        ) + "%";
 
 
-            /*
-             * 連鎖段階をCSSへ渡す
-             */
-
-            rowElement.dataset.chain =
-                chainLevel;
+    rowElement.style.height =
+        (
+            100 / ROWS
+        ) + "%";
 
 
-            rowElement.dataset.lines =
-                lineCount;
+    /*
+     * =====================================================
+     * 連鎖情報
+     * =====================================================
+     */
+
+    rowElement.dataset.chain =
+        chainLevel;
 
 
-            boardElement.appendChild(
-                rowElement
-            );
+    rowElement.dataset.lines =
+        totalClearCount;
 
-        }
+
+    rowElement.dataset.clearNumber =
+        clearNumber;
+
+
+    boardElement.appendChild(
+        rowElement
     );
 
 
     /*
-     * キラキラ音
+     * =====================================================
+     * 効果音
+     *
+     * エフェクト開始と同時に再生
+     * =====================================================
      */
 
     playClearSound(
-        lineCount,
+        clearNumber,
         chain
     );
 
-}
-
-
-/* =========================================================
-   ラインエフェクト待機
-========================================================= */
-
-function waitForLineEffect(
-    lineCount,
-    chain
-) {
 
     /*
-     * 1段
-     * → 約500ms
+     * =====================================================
+     * エフェクト待機
      *
-     * 4段・高連鎖
-     * → 少し長くする
+     * 340ms → 170ms
+     *
+     * 約2倍のテンポ
+     *
+     * ここを短くすることで、
+     *
+     * 光る
+     * ↓
+     * 消える
+     *
+     * の間隔が短くなる
+     * =====================================================
      */
 
-    const duration =
-        500 +
-        Math.min(lineCount - 1, 3) * 100 +
-        Math.min(chain - 1, 4) * 80;
-
-
-    return new Promise(
-        function(resolve) {
-
+    await new Promise(
+        resolve =>
             setTimeout(
-                function() {
-
-                    /*
-                     * 行エフェクトを削除
-                     */
-
-                    const boardElement =
-                        document.getElementById(
-                            "board"
-                        );
+                resolve,
+                170
+            )
+    );
 
 
-                    if (boardElement) {
+    /*
+     * =====================================================
+     * エフェクトを削除
+     *
+     * clearLines()側で
+     * この直後に実際のラインを削除する
+     * =====================================================
+     */
 
-                        boardElement
-                            .querySelectorAll(
-                                ".line-clear-row"
-                            )
-                            .forEach(
-                                element =>
-                                    element.remove()
-                            );
-
-
-                        boardElement
-                            .classList.remove(
-                                "line-clear-effect",
-                                "combo-clear-effect",
-                                "chain-effect"
-                            );
-
-                    }
+    rowElement.remove();
 
 
-                    resolve();
+    /*
+     * =====================================================
+     * 次のラインまでの待機
+     *
+     * 20ms → 10ms
+     *
+     * ほぼ間を空けずに次のラインへ
+     * =====================================================
+     */
 
-                },
-                duration
-            );
-
-        }
+    await new Promise(
+        resolve =>
+            setTimeout(
+                resolve,
+                10
+            )
     );
 
 }
@@ -3049,17 +3291,6 @@ function startGame() {
 
 
     /*
-     * 盤面を描画
-     *
-     * 固定されたミノ
-     * ＋
-     * 現在操作中のミノ
-     */
-
-    drawBoard();
-
-
-    /*
      * HOLD / NEXTを描画
      */
 
@@ -3340,11 +3571,11 @@ let lastMoveX = 0;
 
 /*
  * 横方向の1マス移動に必要な距離
- *
+ * スワイプによる横移動距離調節
  * 小さくすると細かく移動しやすくなる
  */
 
-const swipeDistance = 36;
+const swipeDistance = 25;
 
 
 /*
@@ -4250,6 +4481,8 @@ function playPerfectClearEffect(
 
 let boardLongPressTimer = null;
 
+let fastDropTimer = null;
+
 
 /*
  * 長押し開始
@@ -4276,19 +4509,6 @@ boardElement.addEventListener(
 
 
         /*
-         * 盤面のスワイプ開始位置は
-         * 既存処理をそのまま使用
-         */
-
-        touchStartX =
-            event.clientX;
-
-        touchStartY =
-            event.clientY;
-
-
-        /*
-         * 少し待ってから
          * 長押し判定
          */
 
@@ -4297,14 +4517,14 @@ boardElement.addEventListener(
                 function() {
 
                     /*
-                     * 長押し中
+                     * 長押し開始
                      */
 
                     fastDropActive = true;
 
 
                     /*
-                     * 現在の速度を保存
+                     * 現在の通常速度を保存
                      */
 
                     normalDropSpeed =
@@ -4312,7 +4532,7 @@ boardElement.addEventListener(
 
 
                     /*
-                     * 高速化
+                     * 高速落下速度
                      */
 
                     dropSpeed =
@@ -4320,14 +4540,43 @@ boardElement.addEventListener(
 
 
                     /*
-                     * タイマーを高速化
+                     * =================================================
+                     * 重要
+                     *
+                     * 一時停止中でも高速落下できるように
+                     * 専用タイマーを使用する。
+                     * =================================================
                      */
 
-                    if (!paused) {
+                    clearInterval(
+                        fastDropTimer
+                    );
 
-                        restartTimer();
 
-                    }
+                    fastDropTimer =
+                        setInterval(
+                            function() {
+
+                                if (
+                                    gameOver ||
+                                    !current
+                                ) {
+
+                                    return;
+
+                                }
+
+
+                                /*
+                                 * pausedでもmoveDown()は
+                                 * 操作可能なのでそのまま実行
+                                 */
+
+                                moveDown();
+
+                            },
+                            FAST_DROP_SPEED
+                        );
 
                 },
                 350
@@ -4338,7 +4587,7 @@ boardElement.addEventListener(
 
 
 /*
- * 指を離した
+ * 長押し終了
  */
 
 function stopBoardLongPress() {
@@ -4356,8 +4605,19 @@ function stopBoardLongPress() {
 
 
     /*
-     * 高速落下中なら
-     * 元の速度に戻す
+     * 高速タイマー停止
+     */
+
+    clearInterval(
+        fastDropTimer
+    );
+
+
+    fastDropTimer = null;
+
+
+    /*
+     * 高速落下中だった場合
      */
 
     if (fastDropActive) {
@@ -4365,13 +4625,17 @@ function stopBoardLongPress() {
         fastDropActive = false;
 
 
+        /*
+         * 通常速度へ戻す
+         */
+
         dropSpeed =
             normalDropSpeed;
 
 
         /*
          * ゲームオーバーでなければ
-         * 通常速度に戻す
+         * 通常タイマーを再開
          */
 
         if (!gameOver) {
@@ -4396,7 +4660,7 @@ boardElement.addEventListener(
 
 
 /*
- * 指がキャンセルされた
+ * 指をキャンセルした
  */
 
 boardElement.addEventListener(
