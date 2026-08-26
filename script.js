@@ -3871,7 +3871,7 @@ let lastMoveX = 0;
  * 横移動1マスに必要な距離
  */
 
-const swipeDistance = 25;
+const swipeDistance = 20;
 
 
 /*
