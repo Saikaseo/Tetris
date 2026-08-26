@@ -29,6 +29,30 @@ let normalDropSpeed = 2000;
 
 let fastDropActive = false;
 
+
+/* =========================================================
+   スマホタッチ操作状態
+========================================================= */
+
+/*
+ * 現在のタッチが横スワイプ操作なのか
+ */
+let horizontalSwipeActive = false;
+
+
+/*
+ * 現在のタッチが即時落下操作なのか
+ *
+ * 即時落下後の同じタッチ操作では
+ * 左右スワイプを判定しない。
+ */
+let immediateDropActive = false;
+
+
+/*
+ * タッチ中に指が動いたか
+ */
+let touchMoved = false;
 /* =========================================================
    ゲーム状態
 ========================================================= */
@@ -2411,7 +2435,7 @@ async function showSingleLineClearEffect(
      * =====================================================
      */
 
-    playClearSound(
+    await playClearSound(
         clearNumber,
         chain
     );
@@ -3830,7 +3854,6 @@ document.getElementById("pause")
 
 /* =========================================================
    スマホ：スワイプ操作
-   指を画面につけたまま左右移動
 ========================================================= */
 
 const boardElement =
@@ -3838,31 +3861,48 @@ const boardElement =
 
 
 let touchStartX = 0;
+
 let touchStartY = 0;
-
-
-/*
- * 前回ミノを移動した位置
- *
- * 指を動かしている途中で
- * どこまで移動したかを記録する
- */
 
 let lastMoveX = 0;
 
 
 /*
- * 横方向の1マス移動に必要な距離
- * スワイプによる横移動距離調節
- * 小さくすると細かく移動しやすくなる
+ * 横移動1マスに必要な距離
  */
 
 const swipeDistance = 25;
 
 
 /*
- * 指を盤面につけたとき
+ * 横方向の操作だと判断するための
+ * 最小移動距離
+ *
+ * これを小さくすることで、
+ * 横へ指を動かし始めた瞬間から
+ * 長押し判定を解除する。
  */
+
+const horizontalIntentDistance = 8;
+
+
+/*
+ * 下スワイプによる即時落下距離
+ */
+
+const hardDropDistance = 100;
+
+
+/*
+ * タップ判定距離
+ */
+
+const tapDistance = 15;
+
+
+/* =========================================================
+   指を盤面につけたとき
+========================================================= */
 
 boardElement.addEventListener(
     "pointerdown",
@@ -3872,11 +3912,18 @@ boardElement.addEventListener(
             return;
 
 
+        event.preventDefault();
+
+
         /*
-         * スマホの指操作を優先
+         * タッチ状態を初期化
          */
 
-        event.preventDefault();
+        horizontalSwipeActive = false;
+
+        immediateDropActive = false;
+
+        touchMoved = false;
 
 
         touchStartX =
@@ -3887,26 +3934,32 @@ boardElement.addEventListener(
             event.clientY;
 
 
-        /*
-         * 移動距離の基準位置
-         */
-
         lastMoveX =
             event.clientX;
 
 
         /*
          * 指を離すまで
-         * この要素で操作を受け取る
+         * 盤面で操作を受け取る
          */
 
         if (
             boardElement.setPointerCapture
         ) {
 
-            boardElement.setPointerCapture(
-                event.pointerId
-            );
+            try {
+
+                boardElement.setPointerCapture(
+                    event.pointerId
+                );
+
+            } catch (error) {
+
+                /*
+                 * 何もしない
+                 */
+
+            }
 
         }
 
@@ -3914,9 +3967,9 @@ boardElement.addEventListener(
 );
 
 
-/*
- * 指をつけたまま動かしている間
- */
+/* =========================================================
+   指をつけたまま動かしている間
+========================================================= */
 
 boardElement.addEventListener(
     "pointermove",
@@ -3927,57 +3980,70 @@ boardElement.addEventListener(
 
 
         /*
-         * =====================================================
-         * 指を画面につけたまま
-         * 横方向へ動かした距離
-         * =====================================================
+         * 即時落下後の同じタッチでは
+         * 左右スワイプを一切処理しない。
          */
 
-        const dx =
-            event.clientX -
-            lastMoveX;
+        if (immediateDropActive)
+            return;
 
-
-        const absX =
-            Math.abs(dx);
-
-
-        /*
-         * 縦方向に動かした距離
-         */
-
-        const totalDy =
-            Math.abs(
-                event.clientY -
-                touchStartY
-            );
-
-
-        /*
-         * =====================================================
-         * スワイプ判定
-         *
-         * 横方向へ一定以上動いた場合、
-         * これは長押しではなくスワイプ操作と判断する。
-         *
-         * その時点で長押し判定タイマーをキャンセルする。
-         * =====================================================
-         */
 
         const totalDx =
-            Math.abs(
-                event.clientX -
-                touchStartX
-            );
+            event.clientX -
+            touchStartX;
 
+
+        const totalDy =
+            event.clientY -
+            touchStartY;
+
+
+        const absTotalDx =
+            Math.abs(totalDx);
+
+
+        const absTotalDy =
+            Math.abs(totalDy);
+
+
+        /*
+         * 指が少しでも移動したら
+         * タップ専用状態ではなくなる。
+         */
 
         if (
-            totalDx >= swipeDistance &&
-            totalDx > totalDy
+            absTotalDx > 3 ||
+            absTotalDy > 3
         ) {
 
+            touchMoved = true;
+
+        }
+
+
+        /*
+         * =================================================
+         * 横方向へ動き始めた瞬間
+         *
+         * 長押し判定を解除する。
+         *
+         * 25pxではなく8pxの時点で解除するので、
+         * 「左右にスワイプしているのに長押しになる」
+         * 問題を防ぐ。
+         * =================================================
+         */
+
+        if (
+            absTotalDx >=
+                horizontalIntentDistance &&
+            absTotalDx > absTotalDy
+        ) {
+
+            horizontalSwipeActive = true;
+
+
             /*
-             * 長押し判定をキャンセル
+             * 長押し判定を完全キャンセル
              */
 
             clearTimeout(
@@ -3990,8 +4056,8 @@ boardElement.addEventListener(
 
 
             /*
-             * 万が一高速落下が開始していた場合も
-             * スワイプ操作へ切り替える。
+             * 万一すでに高速落下していた場合も
+             * 即座に停止
              */
 
             if (fastDropActive) {
@@ -4004,90 +4070,115 @@ boardElement.addEventListener(
 
 
         /*
-         * =====================================================
-         * 横移動
-         *
-         * 25px動くごとに1マス
-         * =====================================================
+         * 横スワイプ中でなければ
+         * 左右移動処理をしない。
          */
 
         if (
-            absX >= swipeDistance &&
-            absX > totalDy
+            !horizontalSwipeActive
         ) {
 
-            const moveCount =
-                Math.floor(
-                    absX /
-                    swipeDistance
-                );
+            return;
+
+        }
 
 
-            /*
-             * 左へ
-             */
+        /*
+         * 前回位置からの横移動量
+         */
 
-            if (dx < 0) {
+        const dx =
+            event.clientX -
+            lastMoveX;
 
-                for (
-                    let i = 0;
-                    i < moveCount;
-                    i++
-                ) {
 
-                    moveHorizontal(-1);
+        const absX =
+            Math.abs(dx);
 
-                }
+
+        /*
+         * 縦方向へ大きく動いている場合は
+         * 横移動を行わない。
+         */
+
+        if (
+            absX < swipeDistance ||
+            absX <= absTotalDy
+        ) {
+
+            return;
+
+        }
+
+
+        /*
+         * 何マス移動したか
+         */
+
+        const moveCount =
+            Math.floor(
+                absX /
+                swipeDistance
+            );
+
+
+        /*
+         * 左
+         */
+
+        if (dx < 0) {
+
+            for (
+                let i = 0;
+                i < moveCount;
+                i++
+            ) {
+
+                moveHorizontal(-1);
+
+            }
+
+        }
+
+
+        /*
+         * 右
+         */
+
+        else {
+
+            for (
+                let i = 0;
+                i < moveCount;
+                i++
+            ) {
+
+                moveHorizontal(1);
 
             }
 
-
-            /*
-             * 右へ
-             */
-
-            else {
-
-                for (
-                    let i = 0;
-                    i < moveCount;
-                    i++
-                ) {
-
-                    moveHorizontal(1);
-
-                }
-
-            }
+        }
 
 
-            /*
-             * =================================================
-             * 今回移動した分だけ
-             * 基準位置を進める
-             *
-             * これにより
-             * 指をつけたまま
-             * さらに移動できる
-             * =================================================
-             */
+        /*
+         * 使用した距離だけ
+         * 基準位置を進める。
+         */
 
-            const usedDistance =
-                moveCount *
-                swipeDistance;
+        const usedDistance =
+            moveCount *
+            swipeDistance;
 
 
-            if (dx < 0) {
+        if (dx < 0) {
 
-                lastMoveX -=
-                    usedDistance;
+            lastMoveX -=
+                usedDistance;
 
-            } else {
+        } else {
 
-                lastMoveX +=
-                    usedDistance;
-
-            }
+            lastMoveX +=
+                usedDistance;
 
         }
 
@@ -4095,9 +4186,9 @@ boardElement.addEventListener(
 );
 
 
-/*
- * 指を離したとき
- */
+/* =========================================================
+   指を離したとき
+========================================================= */
 
 boardElement.addEventListener(
     "pointerup",
@@ -4108,6 +4199,13 @@ boardElement.addEventListener(
 
 
         event.preventDefault();
+
+
+        /*
+         * まず長押しを完全停止
+         */
+
+        stopBoardLongPress();
 
 
         const dx =
@@ -4127,36 +4225,89 @@ boardElement.addEventListener(
         const absY =
             Math.abs(dy);
 
-            /*
-             * 大きく下へスワイプ
-             *
-             * → 即着地
-             */
-
-const hardDropDistance = 100;
-
-
-if (
-    dy >= hardDropDistance &&
-    absY > absX
-) {
-
-    hardDrop();
-
-    return;
-
-}
 
         /*
-         * 指をほとんど動かさなかった場合
+         * =================================================
+         * 下スワイプ → 即時落下
          *
-         * → タップとして回転
+         * ここで即時落下フラグを立てる。
+         *
+         * このタッチが終了するまで
+         * 左右スワイプ処理は行わない。
+         * =================================================
          */
 
-        const tapDistance = 15;
+        if (
+            !immediateDropActive &&
+            dy >= hardDropDistance &&
+            absY > absX
+        ) {
 
+            immediateDropActive = true;
+
+
+            /*
+             * 即時落下中は
+             * 横スワイプ判定を無効化
+             */
+
+            horizontalSwipeActive = false;
+
+
+            hardDrop();
+
+
+            /*
+             * pointerup終了後に
+             * フラグをリセット
+             */
+
+            setTimeout(
+                function() {
+
+                    immediateDropActive =
+                        false;
+
+                },
+                0
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+         * =================================================
+         * 横スワイプだった場合
+         *
+         * タップ回転を行わない。
+         * =================================================
+         */
 
         if (
+            horizontalSwipeActive
+        ) {
+
+            horizontalSwipeActive =
+                false;
+
+            return;
+
+        }
+
+
+        /*
+         * =================================================
+         * ほとんど動かしていない
+         *
+         * → タップ回転
+         * =================================================
+         */
+
+        if (
+            !touchMoved &&
             absX < tapDistance &&
             absY < tapDistance
         ) {
@@ -4165,17 +4316,39 @@ if (
 
         }
 
+
+        horizontalSwipeActive =
+            false;
+
+        touchMoved =
+            false;
+
     }
 );
 
 
-/*
- * 指をキャンセルした場合
- */
+/* =========================================================
+   指をキャンセルした場合
+========================================================= */
 
 boardElement.addEventListener(
     "pointercancel",
     function(event) {
+
+        stopBoardLongPress();
+
+
+        horizontalSwipeActive =
+            false;
+
+
+        immediateDropActive =
+            false;
+
+
+        touchMoved =
+            false;
+
 
         if (
             boardElement.releasePointerCapture
@@ -4256,6 +4429,267 @@ saveGame();
 
 
 /* =========================================================
+   音声設定
+========================================================= */
+
+const bgmVolumeSlider =
+    document.getElementById(
+        "bgm-volume-slider"
+    );
+
+
+const bgmVolumeValue =
+    document.getElementById(
+        "bgm-volume-value"
+    );
+
+
+const seVolumeSlider =
+    document.getElementById(
+        "se-volume-slider"
+    );
+
+
+const seVolumeValue =
+    document.getElementById(
+        "se-volume-value"
+    );
+
+
+/*
+ * BGM音量
+ */
+
+if (bgmVolumeSlider) {
+
+    bgmVolumeSlider.addEventListener(
+        "input",
+        function() {
+
+            bgmVolume =
+                Number(
+                    bgmVolumeSlider.value
+                ) / 100;
+
+
+            if (bgmGainNode) {
+
+                bgmGainNode.gain.value =
+                    bgmVolume;
+
+            }
+
+
+            if (bgmVolumeValue) {
+
+                bgmVolumeValue.textContent =
+                    Math.round(
+                        bgmVolume * 100
+                    ) + "%";
+
+            }
+
+
+            saveAudioSettings();
+
+        }
+    );
+
+}
+
+
+/*
+ * 効果音音量
+ */
+
+if (seVolumeSlider) {
+
+    seVolumeSlider.addEventListener(
+        "input",
+        function() {
+
+            seVolume =
+                Number(
+                    seVolumeSlider.value
+                ) / 100;
+
+
+            if (seGainNode) {
+
+                seGainNode.gain.value =
+                    seVolume;
+
+            }
+
+
+            if (seVolumeValue) {
+
+                seVolumeValue.textContent =
+                    Math.round(
+                        seVolume * 100
+                    ) + "%";
+
+            }
+
+
+            saveAudioSettings();
+
+        }
+    );
+
+}
+
+
+/*
+ * 音声再開＆ミュート切替ボタン
+ *
+ * 🔊 音声再開＆ミュート解除
+ *      ↓
+ * 🔇 音声ミュート
+ *      ↓
+ * 🔊 音声再開＆ミュート解除
+ *
+ * BGM・効果音をまとめてミュートする。
+ *
+ * 音量スライダーの設定値そのものは変更しない。
+ */
+
+const audioRestartButton =
+    document.getElementById(
+        "audio-restart"
+    );
+
+
+/*
+ * ミュート状態
+ *
+ * false = 音声ON
+ * true  = ミュート中
+ */
+
+let audioMuted = false;
+
+
+if (audioRestartButton) {
+
+    audioRestartButton.addEventListener(
+        "pointerdown",
+        function(event) {
+
+            event.preventDefault();
+
+
+            /*
+             * 現在ミュート中
+             * → ミュート解除
+             */
+
+            if (audioMuted) {
+
+                audioMuted = false;
+
+
+                /*
+                 * 音量を元に戻す
+                 */
+
+                if (bgmGainNode) {
+
+                    bgmGainNode.gain.value =
+                        bgmVolume;
+
+                }
+
+
+                if (seGainNode) {
+
+                    seGainNode.gain.value =
+                        seVolume;
+
+                }
+
+
+                /*
+                 * AudioContextを再開
+                 */
+
+                resumeAudio();
+
+
+                /*
+                 * ボタン表示
+                 */
+
+                audioRestartButton.textContent =
+                    "🔇 OFF";
+
+            }
+
+
+            /*
+             * 現在音声ON
+             * → ミュート
+             */
+
+            else {
+
+                audioMuted = true;
+
+
+                /*
+                 * BGMをミュート
+                 */
+
+                if (bgmGainNode) {
+
+                    bgmGainNode.gain.value =
+                        0;
+
+                }
+
+
+                /*
+                 * 効果音をミュート
+                 */
+
+                if (seGainNode) {
+
+                    seGainNode.gain.value =
+                        0;
+
+                }
+
+
+                /*
+                 * ボタン表示
+                 */
+
+                audioRestartButton.textContent =
+                    "🔊 ON";
+
+            }
+
+        }
+    );
+
+}
+
+/*
+ * 初期状態
+ *
+ * 音声はONなので、
+ * ボタンには「音声ミュート」と表示する。
+ */
+
+if (audioRestartButton) {
+
+    audioRestartButton.textContent =
+        "🔇 OFF";
+
+}
+
+
+/* =========================================================
    スマホ：リスタート
 ========================================================= */
 
@@ -4294,64 +4728,126 @@ document.getElementById(
     }
 );
 
-/* =========================================================
-   ゲーム開始
-========================================================= */
 
-if (!loadGame()) {
-
-    startGame();
-
-}
-
-/* =========================================================
-   定期自動保存
-========================================================= */
-
-setInterval(
-    function() {
-
-        if (!gameOver) {
-
-            saveGame();
-
-        }
-
-    },
-    1000
-);
+/*
+ * =========================================================
+ * ここではゲームを開始しない
+ *
+ * 音声システムの変数・定数が
+ * すべて初期化された後でゲームを開始する。
+ * =========================================================
+ */
 
 /* =========================================================
-   ライン消去・全消しエフェクト
+   音声システム
 ========================================================= */
 
 let effectAudioContext = null;
 
+let bgmGainNode = null;
+
+let seGainNode = null;
+
+let bgmTimer = null;
+
+let bgmPlaying = false;
+
 
 /*
- * 効果音用AudioContext
+ * 音量調整
+ *
+ * 0.0 ～ 1.0
+ */
+
+let bgmVolume = 0.15;
+
+let seVolume = 0.70;
+
+
+/*
+ * 音声設定の保存キー
+ */
+
+const AUDIO_SAVE_KEY =
+    "tetris_audio_settings";
+
+
+/*
+ * =========================================================
+ * AudioContext取得
+ * =========================================================
  */
 
 function getAudioContext() {
 
     if (!effectAudioContext) {
 
+        const AudioContextClass =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+
+        if (!AudioContextClass)
+            return null;
+
+
         effectAudioContext =
-            new (
-                window.AudioContext ||
-                window.webkitAudioContext
-            )();
+            new AudioContextClass();
+
+
+        /*
+         * 効果音用音量
+         */
+
+        seGainNode =
+            effectAudioContext.createGain();
+
+
+        seGainNode.gain.value =
+            seVolume;
+
+
+        seGainNode.connect(
+            effectAudioContext.destination
+        );
+
+
+        /*
+         * BGM用音量
+         */
+
+        bgmGainNode =
+            effectAudioContext.createGain();
+
+
+        bgmGainNode.gain.value =
+            bgmVolume;
+
+
+        bgmGainNode.connect(
+            effectAudioContext.destination
+        );
 
     }
+
+
+    /*
+     * スマホ復帰時などに
+     * AudioContextが停止していたら再開
+     */
 
     if (
         effectAudioContext.state ===
         "suspended"
     ) {
 
-        effectAudioContext.resume();
+        effectAudioContext.resume()
+            .catch(
+                () => {}
+            );
 
     }
+
 
     return effectAudioContext;
 
@@ -4359,13 +4855,773 @@ function getAudioContext() {
 
 
 /*
- * 効果音を鳴らす
- *
- * type
- * 1 = 通常ライン
- * 2 = 複数ライン
- * 3 = 全消し
+ * =========================================================
+ * 効果音用Gain
+ * =========================================================
  */
+
+function getSEGain() {
+
+    const ctx =
+        getAudioContext();
+
+
+    if (!ctx || !seGainNode)
+        return null;
+
+
+    seGainNode.gain.value =
+        seVolume;
+
+
+    return seGainNode;
+
+}
+
+
+/*
+ * =========================================================
+ * BGM用Gain
+ * =========================================================
+ */
+
+function getBGMGain() {
+
+    const ctx =
+        getAudioContext();
+
+
+    if (!ctx || !bgmGainNode)
+        return null;
+
+
+    bgmGainNode.gain.value =
+        bgmVolume;
+
+
+    return bgmGainNode;
+
+}
+
+
+/* =========================================================
+   BGM 楽曲編集エリア
+========================================================= */
+
+
+/*
+ * =========================================================
+ * 音程 → 周波数変換表
+ *
+ * 自分で曲を入力するときは
+ * 基本的にここを変更する必要はありません。
+ *
+ * 音程は
+ *
+ * C4
+ * D4
+ * E4
+ * F4
+ * G4
+ * A4
+ * B4
+ *
+ * のように入力します。
+ * =========================================================
+ */
+
+const BGM_FREQUENCIES = {
+
+    "C3": 130.81,
+    "D3": 146.83,
+    "E3": 164.81,
+    "F3": 174.61,
+    "G3": 196.00,
+    "A3": 220.00,
+    "B3": 246.94,
+
+    "C4": 261.63,
+    "D4": 293.66,
+    "E4": 329.63,
+    "F4": 349.23,
+    "G4": 392.00,
+    "A4": 440.00,
+    "B4": 493.88,
+
+    "C5": 523.25,
+    "D5": 587.33,
+    "E5": 659.25,
+    "F5": 698.46,
+    "G5": 783.99,
+    "A5": 880.00,
+    "B5": 987.77,
+
+    "C6": 1046.50,
+    "D6": 1174.66,
+    "E6": 1318.51,
+    "F6": 1396.91,
+    "G6": 1567.98,
+    "A6": 1760.00,
+    "B6": 1975.53
+
+};
+
+
+/*
+ * =========================================================
+ * 楽曲データ
+ *
+ * ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+ *
+ *       ↓↓↓ ここを自分で編集します ↓↓↓
+ *
+ * ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+ *
+ *
+ * note
+ * → 音程
+ *
+ * length
+ * → その音を鳴らす長さ（秒）
+ *
+ *
+ * 例：
+ *
+ * {
+ *     note: "C4",
+ *     length: 0.25
+ * }
+ *
+ * ↓
+ *
+ * 「C4を0.25秒」
+ *
+ *
+ * 休符：
+ *
+ * {
+ *     note: "REST",
+ *     length: 0.25
+ * }
+ *
+ * ↓
+ *
+ * 「0.25秒休む」
+ *
+ * =========================================================
+ */
+
+
+const BGM_SONG = [
+
+    /*
+     * =====================================================
+     * ここから自分の曲に変更
+     *
+     * note
+     * → 音程
+     *
+     * length
+     * → 音を鳴らす長さ（秒）
+     *
+     * 休符
+     *
+     * {
+     *     note: "REST",
+     *     length: 0.25
+     * }
+     *
+     * =====================================================
+     */
+
+
+    {note: "E4", length: 0.5},
+    {note: "B3", length: 0.25},
+    {note: "C4", length: 0.25},
+    {note: "D4", length: 0.5},
+
+    {note: "C4", length: 0.25},
+    {note: "B3", length: 0.25},
+    {note: "A3", length: 0.5},
+
+    {note: "A3", length: 0.25},
+    {note: "C4", length: 0.25},
+    {note: "E4", length: 0.5},
+
+    {note: "D4", length: 0.25},
+    {note: "C4", length: 0.25},
+    {note: "B3", length: 0.5},
+
+    {note: "B3", length: 0.25},
+    {note: "C4", length: 0.25},
+    {note: "D4", length: 0.5},
+
+    {note: "E4", length: 0.5},
+    {note: "C4", length: 0.5},
+    {note: "A3", length: 0.5},
+    {note: "A3", length: 0.5},
+
+    {note: "REST", length: 0.5},
+    {note: "REST", length: 0.25},
+
+    {note: "D4", length: 0.5},
+    {note: "F4", length: 0.25},
+    {note: "A4", length: 0.5},
+
+    {note: "G4", length: 0.25},
+    {note: "F4", length: 0.25},
+    {note: "E4", length: 0.75},
+
+    {note: "C4", length: 0.25},
+    {note: "E4", length: 0.5},
+    {note: "D4", length: 0.25},
+    {note: "C4", length: 0.25},
+
+    {note: "B3", length: 0.5},
+    {note: "B3", length: 0.25},
+    {note: "C4", length: 0.25},
+    {note: "D4", length: 0.5},
+
+    {note: "E4", length: 0.5},
+    {note: "C4", length: 0.5},
+    {note: "A3", length: 0.5},
+    {note: "A3", length: 0.5},
+    {note: "REST", length: 0.5}
+
+];
+
+
+/*
+ * =========================================================
+ * BGMの音量
+ * =========================================================
+ *
+ * 現在のBGM音量設定をそのまま使用するため、
+ * ここでは変更しません。
+ * =========================================================
+ */
+
+
+/*
+ * =========================================================
+ * 楽曲全体の長さを自動計算
+ * =========================================================
+ */
+
+const BGM_LOOP_LENGTH =
+    BGM_SONG.reduce(
+        function(
+            total,
+            noteData
+        ) {
+
+            return total +
+                noteData.length;
+
+        },
+        0
+    );
+
+
+/*
+ * BGM 1音を作成
+ *
+ * BGM_SONGの
+ * 「音程」と「長さ」をそのまま使用する。
+ */
+
+function playBGMNote(
+    frequency,
+    startTime,
+    duration
+) {
+
+    const ctx =
+        getAudioContext();
+
+
+    const gain =
+        getBGMGain();
+
+
+    if (!ctx || !gain)
+        return;
+
+
+    const osc =
+        ctx.createOscillator();
+
+
+    const noteGain =
+        ctx.createGain();
+
+
+    osc.type =
+        "square";
+
+
+    osc.frequency.setValueAtTime(
+        frequency,
+        startTime
+    );
+
+
+    /*
+     * 少しだけ音程を上げて
+     * ゲームらしい電子音にする
+     */
+
+    osc.frequency.exponentialRampToValueAtTime(
+        frequency * 1.015,
+        startTime + duration
+    );
+
+
+    /*
+     * 音量を徐々に上げる
+     */
+
+    noteGain.gain.setValueAtTime(
+        0.0001,
+        startTime
+    );
+
+
+    noteGain.gain.exponentialRampToValueAtTime(
+        0.18,
+        startTime + Math.min(
+            0.015,
+            duration * 0.2
+        )
+    );
+
+
+    /*
+     * 音量を徐々に下げる
+     */
+
+    const releaseTime =
+        Math.max(
+            startTime + 0.02,
+            startTime + duration - 0.02
+        );
+
+
+    noteGain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        releaseTime
+    );
+
+
+    osc.connect(
+        noteGain
+    );
+
+
+    noteGain.connect(
+        gain
+    );
+
+
+    osc.start(
+        startTime
+    );
+
+
+    osc.stop(
+        startTime + duration
+    );
+
+}
+
+
+/*
+ * BGMフレーズを1回再生
+ *
+ * BGM_SONGを上から順番に再生する。
+ *
+ * note:
+ *     音程
+ *
+ * length:
+ *     その音を鳴らす長さ
+ *
+ * REST:
+ *     休符なので音を鳴らさない
+ */
+
+function scheduleBGM() {
+
+    const ctx =
+        getAudioContext();
+
+
+    if (!ctx)
+        return;
+
+
+    const startTime =
+        ctx.currentTime + 0.03;
+
+
+    let currentTime =
+        startTime;
+
+
+    BGM_SONG.forEach(
+        function(noteData) {
+
+            /*
+             * 休符の場合
+             *
+             * 音は鳴らさず、
+             * 時間だけ進める。
+             */
+
+            if (
+                noteData.note !== "REST"
+            ) {
+
+                const frequency =
+                    BGM_FREQUENCIES[
+                        noteData.note
+                    ];
+
+
+                /*
+                 * 存在しない音程が
+                 * 入力されていた場合は
+                 * 音を鳴らさない。
+                 */
+
+                if (
+                    typeof frequency ===
+                    "number"
+                ) {
+
+                    playBGMNote(
+                        frequency,
+                        currentTime,
+                        noteData.length
+                    );
+
+                }
+
+            }
+
+
+            /*
+             * 次の音の開始位置を
+             * 今の音の長さだけ進める。
+             */
+
+            currentTime +=
+                noteData.length;
+
+        }
+    );
+
+}
+
+
+/*
+ * BGM開始
+ */
+
+function startBGM() {
+
+    const ctx =
+        getAudioContext();
+
+
+    if (!ctx)
+        return;
+
+
+    if (bgmPlaying)
+        return;
+
+
+    bgmPlaying = true;
+
+
+    scheduleBGM();
+
+
+    /*
+     * 次のフレーズを予約
+     */
+
+    bgmTimer =
+        setInterval(
+            function() {
+
+                if (
+                    document.hidden ||
+                    !bgmPlaying
+                ) {
+
+                    return;
+
+                }
+
+
+                scheduleBGM();
+
+            },
+            BGM_LOOP_LENGTH * 1000
+        );
+
+}
+
+
+/*
+ * BGM停止
+ */
+
+function stopBGM() {
+
+    bgmPlaying = false;
+
+
+    clearInterval(
+        bgmTimer
+    );
+
+
+    bgmTimer = null;
+
+}
+
+
+/*
+ * =========================================================
+ * 音声を再開
+ *
+ * スマホで別アプリから戻ってきた場合にも使用
+ * =========================================================
+ */
+
+async function resumeAudio() {
+
+    try {
+
+        const ctx =
+            getAudioContext();
+
+
+        if (!ctx)
+            return;
+
+
+        if (
+            ctx.state ===
+            "suspended"
+        ) {
+
+            await ctx.resume();
+
+        }
+
+
+        /*
+         * BGMが停止していたら再開
+         */
+
+        if (!bgmPlaying) {
+
+            startBGM();
+
+        }
+
+    } catch (error) {
+
+        console.log(
+            "音声を再開できませんでした",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   音声設定保存
+========================================================= */
+
+function saveAudioSettings() {
+
+    try {
+
+        localStorage.setItem(
+            AUDIO_SAVE_KEY,
+            JSON.stringify({
+
+                bgmVolume:
+                    bgmVolume,
+
+                seVolume:
+                    seVolume
+
+            })
+        );
+
+    } catch (error) {
+
+        console.log(
+            "音声設定の保存に失敗しました",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   音声設定読み込み
+========================================================= */
+
+function loadAudioSettings() {
+
+    try {
+
+        const saved =
+            localStorage.getItem(
+                AUDIO_SAVE_KEY
+            );
+
+
+        if (saved) {
+
+            const data =
+                JSON.parse(saved);
+
+
+            if (
+                typeof data.bgmVolume ===
+                "number"
+            ) {
+
+                bgmVolume =
+                    Math.max(
+                        0,
+                        Math.min(
+                            1,
+                            data.bgmVolume
+                        )
+                    );
+
+            }
+
+
+            if (
+                typeof data.seVolume ===
+                "number"
+            ) {
+
+                seVolume =
+                    Math.max(
+                        0,
+                        Math.min(
+                            1,
+                            data.seVolume
+                        )
+                    );
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.log(
+            "音声設定の読み込みに失敗しました",
+            error
+        );
+
+    }
+
+
+    updateAudioControls();
+
+}
+
+
+/* =========================================================
+   音声スライダー表示更新
+========================================================= */
+
+function updateAudioControls() {
+
+    const bgmSlider =
+        document.getElementById(
+            "bgm-volume-slider"
+        );
+
+
+    const bgmValue =
+        document.getElementById(
+            "bgm-volume-value"
+        );
+
+
+    const seSlider =
+        document.getElementById(
+            "se-volume-slider"
+        );
+
+
+    const seValue =
+        document.getElementById(
+            "se-volume-value"
+        );
+
+
+    const bgmPercent =
+        Math.round(
+            bgmVolume * 100
+        );
+
+
+    const sePercent =
+        Math.round(
+            seVolume * 100
+        );
+
+
+    if (bgmSlider)
+        bgmSlider.value =
+            bgmPercent;
+
+
+    if (bgmValue)
+        bgmValue.textContent =
+            bgmPercent + "%";
+
+
+    if (seSlider)
+        seSlider.value =
+            sePercent;
+
+
+    if (seValue)
+        seValue.textContent =
+            sePercent + "%";
+
+
+    if (bgmGainNode)
+        bgmGainNode.gain.value =
+            bgmVolume;
+
+
+    if (seGainNode)
+        seGainNode.gain.value =
+            seVolume;
+
+}
+
 
 /* =========================================================
    キラキラ系ライン消去効果音
@@ -4382,45 +5638,81 @@ function playClearSound(
             getAudioContext();
 
 
+        const gainNode =
+            getSEGain();
+
+
+        if (!ctx || !gainNode)
+            return;
+
+
         const now =
             ctx.currentTime;
 
 
         /*
-         * ライン数＋連鎖数で
-         * 音の高さを上げる
+         * =================================================
+         * キラキラ音階
+         *
+         * 従来6段階
+         * ↓
+         * 11段階へ増加
+         *
+         * これにより、ライン数や連鎖数が
+         * 高くなるほど、さらに上へ登っていく。
+         * =================================================
+         */
+
+        const notes = [
+
+            880,
+            988,
+            1046,
+            1174,
+            1318,
+            1396,
+            1568,
+            1760,
+            1975,
+            2093,
+            2349
+
+        ];
+
+
+        /*
+         * ライン数による上昇
          */
 
         const lineBonus =
             (lineCount - 1) * 2;
 
 
+        /*
+         * 連鎖による上昇
+         *
+         * 最大10段階まで
+         */
+
         const chainBonus =
-            Math.min(chain - 1, 5) * 2;
+            Math.min(
+                Math.max(
+                    chain - 1,
+                    0
+                ),
+                10
+            ) * 1;
 
 
         /*
-         * 基本音階
-         *
-         * 上に行くほど
-         * 「キラキラ・盛り上がる」
+         * 1回の効果音で鳴らす音数
          */
-
-        const notes = [
-
-            880,
-            1046,
-            1174,
-            1318,
-            1568,
-            1760
-
-        ];
-
 
         const noteCount =
             Math.min(
-                3 + lineCount + chainBonus,
+                3 +
+                lineCount +
+                chainBonus,
                 notes.length
             );
 
@@ -4431,13 +5723,17 @@ function playClearSound(
             i++
         ) {
 
+            const noteIndex =
+                Math.min(
+                    i +
+                    lineBonus +
+                    chainBonus,
+                    notes.length - 1
+                );
+
+
             const frequency =
-                notes[
-                    Math.min(
-                        i + lineBonus,
-                        notes.length - 1
-                    )
-                ];
+                notes[noteIndex];
 
 
             const startTime =
@@ -4481,7 +5777,10 @@ function playClearSound(
 
             gain.gain.exponentialRampToValueAtTime(
                 0.12 +
-                Math.min(chain, 5) * 0.015,
+                Math.min(
+                    chain,
+                    10
+                ) * 0.012,
                 startTime + 0.008
             );
 
@@ -4495,7 +5794,7 @@ function playClearSound(
             osc.connect(gain);
 
             gain.connect(
-                ctx.destination
+                gainNode
             );
 
 
@@ -4510,7 +5809,9 @@ function playClearSound(
 
 
             /*
-             * 高いキラキラ音を追加
+             * =================================================
+             * 高いキラキラ音
+             * =================================================
              */
 
             const sparkle =
@@ -4559,8 +5860,9 @@ function playClearSound(
                 sparkleGain
             );
 
+
             sparkleGain.connect(
-                ctx.destination
+                gainNode
             );
 
 
@@ -4577,8 +5879,10 @@ function playClearSound(
 
 
         /*
+         * =================================================
          * 連鎖2以上なら
-         * 最後に上昇音を追加
+         * 最後にさらに上昇する音を追加
+         * =================================================
          */
 
         if (chain >= 2) {
@@ -4601,13 +5905,18 @@ function playClearSound(
 
 
             chainOsc.frequency.setValueAtTime(
-                1000 + chain * 100,
+                1000 +
+                chain * 100,
                 startTime
             );
 
 
             chainOsc.frequency.exponentialRampToValueAtTime(
-                1800 + chain * 150,
+                1900 +
+                Math.min(
+                    chain,
+                    10
+                ) * 150,
                 startTime + 0.22
             );
 
@@ -4634,8 +5943,9 @@ function playClearSound(
                 chainGain
             );
 
+
             chainGain.connect(
-                ctx.destination
+                gainNode
             );
 
 
@@ -4661,6 +5971,7 @@ function playClearSound(
 
 }
 
+
 /* =========================================================
    全消しエフェクト
 ========================================================= */
@@ -4683,13 +5994,11 @@ function playPerfectClearEffect(
 
 
     boardElement.dataset.chain =
-        Math.min(chain, 5);
+        Math.min(
+            chain,
+            10
+        );
 
-
-    /*
-     * 連鎖が高いほど
-     * 全消し音も盛り上げる
-     */
 
     try {
 
@@ -4697,17 +6006,33 @@ function playPerfectClearEffect(
             getAudioContext();
 
 
+        const gainNode =
+            getSEGain();
+
+
+        if (!ctx || !gainNode)
+            return;
+
+
         const now =
             ctx.currentTime;
 
 
+        /*
+         * 全消しも高音へ段階的に上昇
+         */
+
         const frequencies = [
 
             1046,
+            1174,
             1318,
+            1396,
             1568,
+            1760,
+            1975,
             2093,
-            2637
+            2349
 
         ];
 
@@ -4728,7 +6053,7 @@ function playPerfectClearEffect(
 
                 const startTime =
                     now +
-                    index * 0.08;
+                    index * 0.07;
 
 
                 osc.type =
@@ -4767,8 +6092,9 @@ function playPerfectClearEffect(
 
                 osc.connect(gain);
 
+
                 gain.connect(
-                    ctx.destination
+                    gainNode
                 );
 
 
@@ -4794,10 +6120,6 @@ function playPerfectClearEffect(
 
     }
 
-
-    /*
-     * アニメーション終了後にクラス削除
-     */
 
     setTimeout(
         function() {
@@ -4838,7 +6160,20 @@ boardElement.addEventListener(
 
 
         /*
-         * すでに長押し中なら何もしない
+         * 既存の長押し判定を解除
+         */
+
+        clearTimeout(
+            boardLongPressTimer
+        );
+
+
+        boardLongPressTimer =
+            null;
+
+
+        /*
+         * すでに高速落下中なら何もしない
          */
 
         if (fastDropActive)
@@ -4846,7 +6181,26 @@ boardElement.addEventListener(
 
 
         /*
+         * 新しいタッチでは
+         * まだ横スワイプではない
+         */
+
+        horizontalSwipeActive =
+            false;
+
+
+        immediateDropActive =
+            false;
+
+
+        touchMoved =
+            false;
+
+
+        /*
+         * =================================================
          * 長押し判定
+         * =================================================
          */
 
         boardLongPressTimer =
@@ -4855,24 +6209,36 @@ boardElement.addEventListener(
 
                     /*
                      * =================================================
-                     * 長押し開始
+                     * 長押し開始直前に最終確認
                      *
-                     * スワイプによって長押し判定が
-                     * キャンセルされていない場合のみ開始。
+                     * 横スワイプ中なら絶対に開始しない。
+                     *
+                     * 即時落下操作中も開始しない。
                      * =================================================
                      */
 
                     if (
                         gameOver ||
-                        !current
+                        !current ||
+                        horizontalSwipeActive ||
+                        immediateDropActive ||
+                        touchMoved
                     ) {
+
+                        boardLongPressTimer =
+                            null;
 
                         return;
 
                     }
 
 
-                    fastDropActive = true;
+                    /*
+                     * 高速落下開始
+                     */
+
+                    fastDropActive =
+                        true;
 
 
                     /*
@@ -4892,10 +6258,7 @@ boardElement.addEventListener(
 
 
                     /*
-                     * =================================================
-                     * 一時停止中でも高速落下できるように
-                     * 専用タイマーを使用する。
-                     * =================================================
+                     * 専用高速タイマー
                      */
 
                     clearInterval(
@@ -4907,10 +6270,29 @@ boardElement.addEventListener(
                         setInterval(
                             function() {
 
+                                /*
+                                 * 横スワイプへ
+                                 * 切り替わった場合は停止
+                                 */
+
+                                if (
+                                    horizontalSwipeActive ||
+                                    immediateDropActive
+                                ) {
+
+                                    stopBoardLongPress();
+
+                                    return;
+
+                                }
+
+
                                 if (
                                     gameOver ||
                                     !current
                                 ) {
+
+                                    stopBoardLongPress();
 
                                     return;
 
@@ -4918,8 +6300,8 @@ boardElement.addEventListener(
 
 
                                 /*
-                                 * pausedでもmoveDown()は
-                                 * 操作可能なのでそのまま実行
+                                 * 一時停止中でも
+                                 * moveDown()は操作可能
                                  */
 
                                 moveDown();
@@ -4927,6 +6309,7 @@ boardElement.addEventListener(
                             },
                             FAST_DROP_SPEED
                         );
+
 
                 },
                 350
@@ -4937,7 +6320,9 @@ boardElement.addEventListener(
 
 
 /*
+ * =========================================================
  * 長押し終了
+ * =========================================================
  */
 
 function stopBoardLongPress() {
@@ -4951,7 +6336,8 @@ function stopBoardLongPress() {
     );
 
 
-    boardLongPressTimer = null;
+    boardLongPressTimer =
+        null;
 
 
     /*
@@ -4963,7 +6349,8 @@ function stopBoardLongPress() {
     );
 
 
-    fastDropTimer = null;
+    fastDropTimer =
+        null;
 
 
     /*
@@ -4972,7 +6359,8 @@ function stopBoardLongPress() {
 
     if (fastDropActive) {
 
-        fastDropActive = false;
+        fastDropActive =
+            false;
 
 
         /*
@@ -4984,8 +6372,7 @@ function stopBoardLongPress() {
 
 
         /*
-         * ゲームオーバーでなければ
-         * 通常タイマーを再開
+         * 通常タイマー再開
          */
 
         if (!gameOver) {
@@ -5000,30 +6387,199 @@ function stopBoardLongPress() {
 
 
 /*
+ * =========================================================
  * 指を離した
+ * =========================================================
  */
 
 boardElement.addEventListener(
     "pointerup",
-    stopBoardLongPress
+    function() {
+
+        stopBoardLongPress();
+
+    }
 );
 
 
 /*
- * 指をキャンセルした
+ * =========================================================
+ * 指をキャンセル
+ * =========================================================
  */
 
 boardElement.addEventListener(
     "pointercancel",
-    stopBoardLongPress
+    function() {
+
+        stopBoardLongPress();
+
+    }
 );
 
 
 /*
+ * =========================================================
  * 指が盤面外へ出た
+ * =========================================================
  */
 
 boardElement.addEventListener(
     "pointerleave",
-    stopBoardLongPress
+    function() {
+
+        stopBoardLongPress();
+
+    }
+);
+
+/* =========================================================
+   スマホ・タブ復帰時の音声復旧
+========================================================= */
+
+document.addEventListener(
+    "visibilitychange",
+    function() {
+
+        if (
+            !document.hidden
+        ) {
+
+            /*
+             * AudioContextを復帰させる
+             */
+
+            resumeAudio();
+
+        } else {
+
+            /*
+             * 画面が非表示になったら
+             * BGMの新規スケジュールだけ止める。
+             *
+             * すでに鳴っている音はブラウザ側に任せる。
+             */
+
+            clearInterval(
+                bgmTimer
+            );
+
+            bgmTimer = null;
+
+        }
+
+    }
+);
+
+
+/*
+ * iPhone / iPad / Safariなどで
+ * ページ復帰を検知
+ */
+
+window.addEventListener(
+    "pageshow",
+    function() {
+
+        resumeAudio();
+
+    }
+);
+
+
+/*
+ * 画面復帰後の最初のタップ・操作で
+ * AudioContextを確実に復帰
+ */
+
+document.addEventListener(
+    "pointerdown",
+    function() {
+
+        resumeAudio();
+
+    },
+    {
+        passive: true
+    }
+);
+
+
+/*
+ * PCでも最初のキー操作で音声を有効化
+ */
+
+document.addEventListener(
+    "keydown",
+    function() {
+
+        /*
+         * PCでは最初のキー操作を
+         * ユーザー操作として利用して
+         * AudioContextを開始する。
+         */
+
+        resumeAudio().catch(
+            function(error) {
+
+                console.log(
+                    "キー操作による音声開始に失敗しました:",
+                    error
+                );
+
+            }
+        );
+
+    },
+    {
+        passive: true
+    }
+);
+
+/*
+ * =========================================================
+ * ゲーム開始
+ *
+ * 重要：
+ * 音声システムの変数・定数・関数が
+ * すべて初期化された後に実行する。
+ * =========================================================
+ */
+
+loadAudioSettings();
+
+
+if (!loadGame()) {
+
+    startGame();
+
+}
+
+
+/*
+ * 音声開始を試みる
+ *
+ * ブラウザによって自動再生が
+ * 拒否される場合は、
+ * 最初のタップ・キー操作で開始する。
+ */
+
+resumeAudio();
+
+
+/* =========================================================
+   定期自動保存
+========================================================= */
+
+setInterval(
+    function() {
+
+        if (!gameOver) {
+
+            saveGame();
+
+        }
+
+    },
+    1000
 );

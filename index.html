@@ -102,7 +102,7 @@
         <button id="restart-mobile">RESTART</button>
     </div>
 
-    <!-- 落下速度設定 -->
+        <!-- 落下速度設定 -->
     <div id="speed-control">
         <span>落下速度</span>
 
@@ -116,6 +116,57 @@
         >
 
         <span id="speed-value">2000 ms</span>
+    </div>
+
+    <!-- =====================================================
+         音声設定
+    ====================================================== -->
+
+    <div id="audio-control">
+
+        <div class="audio-row">
+
+            <span>♪ BGM</span>
+
+            <input
+                id="bgm-volume-slider"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="35"
+            >
+
+            <span id="bgm-volume-value">35%</span>
+
+        </div>
+
+
+        <div class="audio-row">
+
+            <span>♪ 効果音</span>
+
+            <input
+                id="se-volume-slider"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="70"
+            >
+
+            <span id="se-volume-value">70%</span>
+
+        </div>
+
+
+        <button
+            id="audio-restart"
+            type="button"
+        >
+            🔊 ON
+        </button>
+
     </div>
 
     <!-- ゲームオーバー画面 -->
