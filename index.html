@@ -2,11 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <title>テトリス</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -16,20 +14,9 @@
 
     <!-- SCORE / LEVEL / LINES -->
     <div id="game-info">
-        <div class="info-box">
-            SCORE<br>
-            <span id="score">0</span>
-        </div>
-
-        <div class="info-box">
-            LEVEL<br>
-            <span id="level">1</span>
-        </div>
-
-        <div class="info-box">
-            LINES<br>
-            <span id="lines">0</span>
-        </div>
+        <div class="info-box">SCORE<br><span id="score">0</span></div>
+        <div class="info-box">LEVEL<br><span id="level">1</span></div>
+        <div class="info-box">LINES<br><span id="lines">0</span></div>
     </div>
 
     <!-- ゲーム本体 -->
@@ -46,40 +33,13 @@
             <div id="pc-controls">
                 <div class="control-title">操作方法</div>
 
-                <div class="control-row">
-                    <span>← →</span>
-                    <span>左右移動</span>
-                </div>
-
-                <div class="control-row">
-                    <span>↓</span>
-                    <span>下移動</span>
-                </div>
-
-                <div class="control-row">
-                    <span>↑</span>
-                    <span>回転</span>
-                </div>
-
-                <div class="control-row">
-                    <span>Space</span>
-                    <span>一時停止</span>
-                </div>
-
-                <div class="control-row">
-                    <span>Z</span>
-                    <span>一手戻す</span>
-                </div>
-
-                <div class="control-row">
-                    <span>C</span>
-                    <span>HOLD</span>
-                </div>
-
-                <div class="control-row">
-                    <span>R</span>
-                    <span>リスタート</span>
-                </div>
+                <div class="control-row"><span>← →</span><span>左右移動</span></div>
+                <div class="control-row"><span>↓</span><span>下移動</span></div>
+                <div class="control-row"><span>↑</span><span>回転</span></div>
+                <div class="control-row"><span>Space</span><span>一時停止</span></div>
+                <div class="control-row"><span>Z</span><span>一手戻す</span></div>
+                <div class="control-row"><span>C</span><span>HOLD</span></div>
+                <div class="control-row"><span>R</span><span>リスタート</span></div>
             </div>
 
         </div>
@@ -102,70 +62,29 @@
         <button id="restart-mobile">RESTART</button>
     </div>
 
-        <!-- 落下速度設定 -->
+    <!-- 落下速度設定 -->
     <div id="speed-control">
         <span>落下速度</span>
-
-        <input
-            id="speed-slider"
-            type="range"
-            min="200"
-            max="3000"
-            step="100"
-            value="2000"
-        >
-
+        <input id="speed-slider" type="range" min="200" max="3000" step="100" value="2000">
         <span id="speed-value">2000 ms</span>
     </div>
 
-    <!-- =====================================================
-         音声設定
-    ====================================================== -->
-
+    <!-- 音声設定 -->
     <div id="audio-control">
 
         <div class="audio-row">
-
             <span>♪ BGM</span>
-
-            <input
-                id="bgm-volume-slider"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value="35"
-            >
-
+            <input id="bgm-volume-slider" type="range" min="0" max="100" step="1" value="35">
             <span id="bgm-volume-value">35%</span>
-
         </div>
-
 
         <div class="audio-row">
-
             <span>♪ 効果音</span>
-
-            <input
-                id="se-volume-slider"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value="70"
-            >
-
+            <input id="se-volume-slider" type="range" min="0" max="100" step="1" value="70">
             <span id="se-volume-value">70%</span>
-
         </div>
 
-
-        <button
-            id="audio-restart"
-            type="button"
-        >
-            🔊 ON
-        </button>
+        <button id="audio-restart" type="button">🔊 ON</button>
 
     </div>
 
@@ -179,9 +98,21 @@
                 <span id="final-score-number">0</span>
             </div>
 
-            <button id="game-over-restart">
-                もう一度遊ぶ
-            </button>
+            <button id="game-over-restart">もう一度遊ぶ</button>
+        </div>
+    </div>
+
+    <!-- リスタート確認画面 -->
+    <div id="restart-confirm">
+        <div id="restart-confirm-box">
+
+            <div id="restart-confirm-title">リスタートしますか？</div>
+
+            <div id="restart-confirm-buttons">
+                <button id="restart-cancel" type="button">キャンセル</button>
+                <button id="restart-confirm-button" type="button">リスタート</button>
+            </div>
+
         </div>
     </div>
 
