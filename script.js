@@ -1,51 +1,36 @@
 /* 基本設定 */
-const COLS = 10;
-const ROWS = 20;
+const COLS = 10; const ROWS = 20;
 
 /* 落下速度調整　初期値
  * 数字が大きいほど遅い
  * 2000 = 2秒 */
-let dropSpeed = 2000;
-const FAST_DROP_SPEED = 80;
-let normalDropSpeed = 2000;
-let fastDropActive = false;
+let dropSpeed = 2000; const FAST_DROP_SPEED = 80; let normalDropSpeed = 2000; let fastDropActive = false;
 
 /* スマホタッチ操作状態 */
-let horizontalSwipeActive = false;
-let immediateDropActive = false;
-let touchMoved = false;
+let horizontalSwipeActive = false; let immediateDropActive = false; let touchMoved = false;
 
 /* ゲーム状態 */
-let board = [];
-let score = 0;
-let lines = 0;
-let level = 1;
-let gameOver = false;
-let paused = false;
-let dropTimer = null;
+let board = []; let score = 0; let lines = 0; let level = 1; let gameOver = false; let paused = false; let dropTimer = null;
 
 /* ライン消去エフェクト・連鎖管理 */
-let clearChain = 0;
-let clearEffectProcessing = false;
+let clearChain = 0; let clearEffectProcessing = false;
 
 /* 現在のミノ */
-let current = null;
-let nextPiece = null;
+let current = null; let nextPiece = null;
 
 /* HOLD */
-let holdPiece = null;
-let holdUsed = false;
+let holdPiece = null; let holdUsed = false;
 
 /* 一手戻す */
-let history = [];
-const MAX_HISTORY = 10;
+let history = []; const MAX_HISTORY = 10;
 
 /* テトリミノ */
 const PIECES = {I: {color: "I",shape: [[1,1,1,1]]},O: {color: "O",shape: [[1,1],[1,1]]},T: {color: "T",shape: [[0,1,0],[1,1,1]]},S: {color: "S",shape: [[0,1,1],[1,1,0]]},Z: {color: "Z",shape: [[1,1,0],[0,1,1]]},J: {color: "J",shape: [[1,0,0],[1,1,1]]},L: {color: "L",shape: [[0,0,1],[1,1,1]]}};
 const PIECE_NAMES = ["I","O","T","S","Z","J","L"];
+function copyPiece(piece) {return piece ? {color:piece.color,shape:piece.shape.map(row => [...row]),x:piece.x,y:piece.y}: null;}
 
 /* 盤面作成 */
-function createBoard() {board = [];for (let y = 0;y < ROWS;y++) {board[y] = [];for (let x = 0;x < COLS;x++) {board[y][x] = null;}}}
+function createBoard() {board =Array.from({length: ROWS},() =>Array(COLS).fill(null));}
 
 /* 盤面描画 */
 function drawBoard() {
@@ -53,9 +38,7 @@ function drawBoard() {
     if (!boardElement)return;
     if (!clearEffectProcessing) {
         boardElement.classList.remove("line-clear-effect","combo-clear-effect","chain-effect","perfect-clear-effect");
-        boardElement
-            .querySelectorAll(".line-clear-row")
-            .forEach(element =>element.remove());
+        boardElement.querySelectorAll(".line-clear-row").forEach(element =>element.remove());
         delete boardElement.dataset.chain;
         delete boardElement.dataset.lines;
     }
@@ -84,7 +67,7 @@ function drawCurrentPiece() {
 }
 
 /* ランダムなミノ */
-function randomPiece() {const name = PIECE_NAMES[Math.floor(Math.random() *PIECE_NAMES.length)];const data =PIECES[name];return {color: data.color,shape:data.shape.map(row => [...row]),x:Math.floor((COLS - data.shape[0].length) / 2),y: 0};}
+function randomPiece() {const color = PIECE_NAMES[Math.floor(Math.random() *PIECE_NAMES.length)],shape =PIECES[color].shape;return {color,shape:shape.map(row => [...row]),x:Math.floor((COLS - shape[0].length) / 2),y: 0};}
 
 /* ミノ生成 */
 function spawnPiece() {if (nextPiece) {current = {color:nextPiece.color,shape:nextPiece.shape.map(row => [...row]),x: 0,y: 0};} else {current = randomPiece();}nextPiece = randomPiece();current.x =Math.floor((COLS - current.shape[0].length) / 2);current.y = 0;drawNext();if (collision(current.x,current.y,current.shape)) {endGame();return;}saveHistory();drawBoard();}
@@ -103,17 +86,15 @@ function drawPreview(containerId, piece) {
     for (let y = 0; y < shape.length; y++) {for (let x = 0; x < shape[y].length; x++) {if (!shape[y][x])continue;const block = document.createElement("div");block.className = "preview-block";block.classList.add(piece.color);block.style.gridColumn = String(x + 1);block.style.gridRow = String(y + 1);pieceElement.appendChild(block);}}container.appendChild(pieceElement);
 }
 
-/* NEXT */
+/* NEXT・HOLD */
 function drawNext() {drawPreview("next",nextPiece);}
-
-/* HOLD */
 function drawHold() {drawPreview("hold",holdPiece);}
 
 /* HOLD */
 function holdCurrentPiece() {
     if (gameOver || clearEffectProcessing || !current)return;
-    if (!holdPiece) {holdPiece = {color:current.color,shape:current.shape.map(row => [...row]),x: 0, y: 0};current = {color:nextPiece.color,shape:nextPiece.shape.map(row => [...row]),x: 0, y: 0};nextPiece = randomPiece();}
-    else {const temp = {color:current.color,shape:current.shape.map(row => [...row]),x: 0, y: 0};current = {color:holdPiece.color,shape:holdPiece.shape.map(row => [...row]),x: 0, y: 0};holdPiece = temp;}
+    if (!holdPiece) {holdPiece = copyPiece(current);current = copyPiece(nextPiece);nextPiece = randomPiece();}
+    else {[current,holdPiece] = [copyPiece(holdPiece),copyPiece(current)];}
     current.x =Math.floor((COLS - current.shape[0].length) / 2);
     current.y = 0;
     drawHold();drawNext();drawBoard();saveGame();
@@ -162,17 +143,16 @@ async function lockPiece() {
 }
 
 /* ライン消去 */
+function isFullRow(row) {return row.every(Boolean);}
 async function clearLines() {
-    const initialClearedRows = [];
-    for (let y = ROWS - 1; y >= 0; y--) {let full = true;for (let x = 0; x < COLS; x++) {if (!board[y][x]) {full = false; break;}}if (full) {initialClearedRows.push(y);}}
+    const initialClearedRows =board.map((row,y) =>isFullRow(row) ? y: -1).filter(y =>y >= 0).reverse();
     if (initialClearedRows.length === 0) {clearChain = 0;return 0;}
     clearChain++;
     clearEffectProcessing = true;
     const clearCount = initialClearedRows.length;
     for (let i = 0; i < clearCount; i++) {
-        let targetRow = -1;
-        for (let y = ROWS - 1; y >= 0; y--) {let full = true;for (let x = 0; x < COLS; x++) {if (!board[y][x]) {full = false;break;}}if (full) {targetRow = y;break;}}
-        if (targetRow === -1) {break;}
+        const targetRow =board.map((row,y) =>isFullRow(row) ? y: -1).findLast(y =>y >= 0);
+        if (targetRow === undefined)break;
         await showSingleLineClearEffect(targetRow,clearChain,i + 1,clearCount);
         board.splice(targetRow,1);
         board.unshift(new Array(COLS).fill(null));
@@ -185,8 +165,7 @@ async function clearLines() {
     score += scores[cleared] * level;
     level = Math.floor(lines / 10) + 1;
     updateInfo();
-    let boardEmpty = true;
-    for (let y = 0; y < ROWS; y++) {for (let x = 0; x < COLS; x++) {if (board[y][x]) {boardEmpty = false; break;}}if (!boardEmpty)break;}
+    const boardEmpty = board.every(row => row.every(cell => !cell));
     if (boardEmpty) {playPerfectClearEffect(clearChain);await new Promise(resolve => setTimeout(resolve,300));}
     const boardElement = document.getElementById("board");
     if (boardElement) {boardElement.classList.remove("line-clear-effect","combo-clear-effect","chain-effect","perfect-clear-effect");boardElement.querySelectorAll(".line-clear-row").forEach(element => element.remove());delete boardElement.dataset.chain;delete boardElement.dataset.lines;}
@@ -200,9 +179,7 @@ async function showSingleLineClearEffect(row,chain,clearNumber,totalClearCount) 
     if (!boardElement)return;
     const effectDuration = 170;
     boardElement.classList.remove("line-clear-effect","combo-clear-effect","perfect-clear-effect","chain-effect");
-    boardElement
-        .querySelectorAll(".line-clear-row")
-        .forEach(element => element.remove());
+    boardElement.querySelectorAll(".line-clear-row").forEach(element => element.remove());
     void boardElement.offsetWidth;
     const chainLevel = Math.min(chain,5);
     boardElement.dataset.chain = chainLevel;
@@ -230,74 +207,36 @@ async function showSingleLineClearEffect(row,chain,clearNumber,totalClearCount) 
 }
 
 /* 情報更新 */
-function updateInfo() {document.getElementById("score").textContent = score;document.getElementById("level").textContent = level;document.getElementById("lines").textContent = lines;}
-
-/* 落下速度 */
-function getDropSpeed() {return dropSpeed;}
+function updateInfo() {for (const [id,value] of [["score",score],["level",level],["lines",lines]])document.getElementById(id).textContent =value;}
 
 /* タイマー */
-function restartTimer() {clearInterval(dropTimer);if (gameOver) {dropTimer = null;return;}if (paused) {dropTimer = null;return;}dropTimer =setInterval(moveDown,getDropSpeed());}
+function restartTimer() {clearInterval(dropTimer);dropTimer =gameOver || paused ? null:setInterval(moveDown,dropSpeed);}
 
 /* 一手戻す用の履歴保存 */
-function saveHistory() {
-    history.push({
-        board:board.map(row => [...row]),
-        score:score,
-        lines:lines,
-        level:level,
-        current:current ? {color:current.color,shape:current.shape.map(row => [...row]),x:current.x,y:current.y}: null,
-        nextPiece:nextPiece ? {color:nextPiece.color,shape:nextPiece.shape.map(row => [...row]),x:nextPiece.x,y:nextPiece.y}: null,
-        holdPiece:holdPiece ? {color:holdPiece.color,shape:holdPiece.shape.map(row => [...row]),x:holdPiece.x,y:holdPiece.y}: null,
-        holdUsed:holdUsed
-    });if (history.length > MAX_HISTORY) {history.shift();}
-}
+function saveHistory() {history.push({board:board.map(row => [...row]),score,lines,level,current:copyPiece(current),nextPiece:copyPiece(nextPiece),holdPiece:copyPiece(holdPiece),holdUsed});if (history.length > MAX_HISTORY)history.shift();}
 
 /* 一手戻す */
 function undoMove() {
-    if (gameOver)return;
-    if (history.length === 0)return;
-    if (history.length > 1) {history.pop();}
-    const state = history[history.length - 1];
+    if (gameOver || !history.length)return;
+    if (history.length > 1)history.pop();
+    const state = history.at(-1);
     if (!state)return;
     board = state.board.map(row => [...row]);
-    score = state.score;
-    lines = state.lines;
-    level = state.level;
-    current = state.current ? {color:state.current.color,shape:state.current.shape.map(row => [...row]),x: state.current.x,y: state.current.y}: null;
-    nextPiece = state.nextPiece ? {color:state.nextPiece.color,shape:state.nextPiece.shape.map(row => [...row]),x: state.nextPiece.x,y: state.nextPiece.y}: null;
-    holdPiece = state.holdPiece ? {color:state.holdPiece.color,shape:state.holdPiece.shape.map(row => [...row]),x: state.holdPiece.x,y: state.holdPiece.y}: null;
-    holdUsed = state.holdUsed || false;
+    ({score,lines,level,holdUsed = false} = state);
+    current = copyPiece(state.current);
+    nextPiece = copyPiece(state.nextPiece);
+    holdPiece = copyPiece(state.holdPiece);
     updateInfo();drawBoard();drawHold();drawNext();restartTimer();saveGame();
 }
 
 /* 自動保存 */
 const SAVE_KEY = "tetris_auto_save";
 function saveGame() {
-    try {const saveData = {
-        board:board.map(row => [...row]),
-        score:score,
-        lines:lines,
-        level:level,
-        gameOver:gameOver,
-        paused:paused,
-        dropSpeed:dropSpeed,
-        current:current ? {color:current.color,shape:current.shape.map(row => [...row]),x:current.x,y:current.y}: null,
-        nextPiece:nextPiece ? {color:nextPiece.color,shape:nextPiece.shape.map(row => [...row]),x: nextPiece.x,y:nextPiece.y}: null,
-        holdPiece:holdPiece ? {color:holdPiece.color,shape:holdPiece.shape.map(row => [...row]),x:holdPiece.x,y:holdPiece.y}: null,
-        holdUsed:holdUsed,
-        history:history.map(state => ({
-            board:state.board.map(row => [...row]),
-            score:state.score,
-            lines:state.lines,
-            level:state.level,
-            current:state.current ? {color:state.current.color,shape:state.current.shape.map(row => [...row]),x:state.current.x,y:state.current.y}: null,
-            nextPiece:state.nextPiece ? {color:state.nextPiece.color,shape:state.nextPiece.shape.map(row => [...row]),x:state.nextPiece.x,y:state.nextPiece.y}: null,
-            holdPiece:state.holdPiece ? {color:state.holdPiece.color,shape:state.holdPiece.shape.map(row => [...row]),x:state.holdPiece.x,y:state.holdPiece.y}: null,
-            holdUsed:state.holdUsed
-        })
-        )
-    };localStorage.setItem(SAVE_KEY,JSON.stringify(saveData));
-    } catch (error) {console.error("自動保存に失敗しました:",error);}
+    try {localStorage.setItem(SAVE_KEY,JSON.stringify({
+        board:board.map(row => [...row]),score,lines,level,gameOver,paused,dropSpeed,
+        current:copyPiece(current),nextPiece:copyPiece(nextPiece),holdPiece:copyPiece(holdPiece),holdUsed,
+        history:history.map(state =>({board:state.board.map(row => [...row]),score:state.score,lines:state.lines,level:state.level,current:copyPiece(state.current),nextPiece:copyPiece(state.nextPiece),holdPiece:copyPiece(state.holdPiece),holdUsed:state.holdUsed}))
+    }));} catch (error) {console.error("自動保存に失敗しました:",error);}
 }
 
 /* 自動保存データ読み込み */
@@ -314,9 +253,9 @@ function loadGame() {
         gameOver = data.gameOver || false;
         paused = data.paused || false;
         dropSpeed = data.dropSpeed || 2000;
-        current = data.current ? {color:data.current.color,shape:data.current.shape.map(row => [...row]),x:data.current.x,y:data.current.y}: null;
-        nextPiece = data.nextPiece ? {color:data.nextPiece.color,shape:data.nextPiece.shape.map( row => [...row]),x:data.nextPiece.x,y:data.nextPiece.y}: null;
-        holdPiece = data.holdPiece ? {color:data.holdPiece.color,shape:data.holdPiece.shape.map(row => [...row]),x:data.holdPiece.x,y:data.holdPiece.y}: null;
+        current = copyPiece(data.current);
+        nextPiece = copyPiece(data.nextPiece);
+        holdPiece = copyPiece(data.holdPiece);
         holdUsed = data.holdUsed || false;
         history = Array.isArray(data.history) ? data.history: [];
         updateInfo();drawBoard();drawHold();drawNext();
@@ -368,12 +307,10 @@ const holdElement = document.getElementById("hold");
 if (holdElement) {holdElement.addEventListener("pointerdown",function(event) {event.preventDefault();holdCurrentPiece();});}
 
 /* スマホ：一手戻す */
-document.getElementById("undo")
-    .addEventListener("pointerdown",function(event) {event.preventDefault();undoMove();});
+document.getElementById("undo").addEventListener("pointerdown",function(event) {event.preventDefault();undoMove();});
 
 /* スマホ：一時停止 */
-document.getElementById("pause")
-    .addEventListener("pointerdown",function(event) {event.preventDefault();togglePause();});
+document.getElementById("pause").addEventListener("pointerdown",function(event) {event.preventDefault();togglePause();});
 
 /* スマホ：スワイプ操作 */
 const boardElement = document.getElementById("board");
@@ -464,15 +401,10 @@ document.getElementById("game-over-restart")
 .addEventListener("click",function() {document.getElementById("game-over").style.display = "none";startGame();});
 
 /* 音声システム */
-let effectAudioContext = null;
-let bgmGainNode = null;
-let seGainNode = null;
-let bgmTimer = null;
-let bgmPlaying = false;
+let effectAudioContext = null; let bgmGainNode = null; let seGainNode = null; let bgmTimer = null; let bgmPlaying = false;
 
 /*音量調整 0.0 ～ 1.0 */
-let bgmVolume = 0.15;
-let seVolume = 0.70;
+let bgmVolume = 0.15; let seVolume = 0.70;
 const AUDIO_SAVE_KEY = "tetris_audio_settings";
 
 /* AudioContext取得 */
@@ -499,135 +431,37 @@ const BGM_FREQUENCIES = {
  * 休符：{note: "REST",length: 0.25},「0.25秒休む」 */
 const BGM_SONG = [
 
-    {note: "E4", length: 0.5},
-    {note: "B3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "D4", length: 0.5},
+    {note: "E4", length: 0.5},{note: "B3", length: 0.25},{note: "C4", length: 0.25},{note: "D4", length: 0.5},
+    {note: "C4", length: 0.25},{note: "B3", length: 0.25},{note: "A3", length: 0.5},
+    {note: "A3", length: 0.25},{note: "C4", length: 0.25},{note: "E4", length: 0.5},
+    {note: "D4", length: 0.25},{note: "C4", length: 0.25},{note: "B3", length: 0.5},
+    {note: "B3", length: 0.25},{note: "C4", length: 0.25},{note: "D4", length: 0.5},
+    {note: "E4", length: 0.5},{note: "C4", length: 0.5},{note: "A3", length: 0.5},{note: "A3", length: 0.5},
+    {note: "REST", length: 0.5},{note: "REST", length: 0.25},
+    {note: "D4", length: 0.5},{note: "F4", length: 0.25},{note: "A4", length: 0.5},
+    {note: "G4", length: 0.25},{note: "F4", length: 0.25},{note: "E4", length: 0.75},
+    {note: "C4", length: 0.25},{note: "E4", length: 0.5},{note: "D4", length: 0.25},{note: "C4", length: 0.25},
+    {note: "B3", length: 0.5},{note: "B3", length: 0.25},{note: "C4", length: 0.25},{note: "D4", length: 0.5},
+    {note: "E4", length: 0.5},{note: "C4", length: 0.5},{note: "A3", length: 0.5},{note: "A3", length: 0.5},{note: "REST", length: 0.5},
 
-    {note: "C4", length: 0.25},
-    {note: "B3", length: 0.25},
-    {note: "A3", length: 0.5},
+    {note: "E4", length: 0.5},{note: "B3", length: 0.25},{note: "C4", length: 0.25},{note: "D4", length: 0.5},
+    {note: "C4", length: 0.25},{note: "B3", length: 0.25},{note: "A3", length: 0.5},
+    {note: "A3", length: 0.25},{note: "C4", length: 0.25},{note: "E4", length: 0.5},
+    {note: "D4", length: 0.25},{note: "C4", length: 0.25},{note: "B3", length: 0.5},
+    {note: "B3", length: 0.25},{note: "C4", length: 0.25},{note: "D4", length: 0.5},
+    {note: "E4", length: 0.5},{note: "C4", length: 0.5},{note: "A3", length: 0.5},{note: "A3", length: 0.5},
+    {note: "REST", length: 0.5},{note: "REST", length: 0.25},
+    {note: "D4", length: 0.5},{note: "F4", length: 0.25},{note: "A4", length: 0.5},
+    {note: "G4", length: 0.25},{note: "F4", length: 0.25},{note: "E4", length: 0.75},
+    {note: "C4", length: 0.25},{note: "E4", length: 0.5},{note: "D4", length: 0.25},{note: "C4", length: 0.25},
+    {note: "B3", length: 0.5},{note: "B3", length: 0.25},{note: "C4", length: 0.25},{note: "D4", length: 0.5},
+    {note: "E4", length: 0.5},{note: "C4", length: 0.5},{note: "A3", length: 0.5},{note: "A3", length: 0.5},{note: "REST", length: 0.5},
 
-    {note: "A3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "E4", length: 0.5},
+    {note: "E4", length: 1},{note: "C4", length: 1},{note: "D4", length: 1},{note: "B3", length: 1},
+    {note: "C4", length: 1},{note: "A3", length: 1},{note: "G3#", length: 1},{note: "B3", length: 1},
 
-    {note: "D4", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "B3", length: 0.5},
-
-    {note: "B3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "D4", length: 0.5},
-
-    {note: "E4", length: 0.5},
-    {note: "C4", length: 0.5},
-    {note: "A3", length: 0.5},
-    {note: "A3", length: 0.5},
-
-    {note: "REST", length: 0.5},
-    {note: "REST", length: 0.25},
-
-    {note: "D4", length: 0.5},
-    {note: "F4", length: 0.25},
-    {note: "A4", length: 0.5},
-
-    {note: "G4", length: 0.25},
-    {note: "F4", length: 0.25},
-    {note: "E4", length: 0.75},
-
-    {note: "C4", length: 0.25},
-    {note: "E4", length: 0.5},
-    {note: "D4", length: 0.25},
-    {note: "C4", length: 0.25},
-
-    {note: "B3", length: 0.5},
-    {note: "B3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "D4", length: 0.5},
-
-    {note: "E4", length: 0.5},
-    {note: "C4", length: 0.5},
-    {note: "A3", length: 0.5},
-    {note: "A3", length: 0.5},
-    {note: "REST", length: 0.5},
-
-
-    {note: "E4", length: 0.5},
-    {note: "B3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "D4", length: 0.5},
-
-    {note: "C4", length: 0.25},
-    {note: "B3", length: 0.25},
-    {note: "A3", length: 0.5},
-
-    {note: "A3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "E4", length: 0.5},
-
-    {note: "D4", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "B3", length: 0.5},
-
-    {note: "B3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "D4", length: 0.5},
-
-    {note: "E4", length: 0.5},
-    {note: "C4", length: 0.5},
-    {note: "A3", length: 0.5},
-    {note: "A3", length: 0.5},
-
-    {note: "REST", length: 0.5},
-    {note: "REST", length: 0.25},
-
-
-    {note: "D4", length: 0.5},
-    {note: "F4", length: 0.25},
-    {note: "A4", length: 0.5},
-
-    {note: "G4", length: 0.25},
-    {note: "F4", length: 0.25},
-    {note: "E4", length: 0.75},
-
-    {note: "C4", length: 0.25},
-    {note: "E4", length: 0.5},
-    {note: "D4", length: 0.25},
-    {note: "C4", length: 0.25},
-
-    {note: "B3", length: 0.5},
-    {note: "B3", length: 0.25},
-    {note: "C4", length: 0.25},
-    {note: "D4", length: 0.5},
-
-    {note: "E4", length: 0.5},
-    {note: "C4", length: 0.5},
-    {note: "A3", length: 0.5},
-    {note: "A3", length: 0.5},
-    {note: "REST", length: 0.5},
-
-
-    {note: "E4", length: 1},
-    {note: "C4", length: 1},
-    {note: "D4", length: 1},
-    {note: "B3", length: 1},
-
-    {note: "C4", length: 1},
-    {note: "A3", length: 1},
-    {note: "G3#", length: 1},
-    {note: "B3", length: 1},
-
-    {note: "E4", length: 1},
-    {note: "C4", length: 1},
-    {note: "D4", length: 1},
-    {note: "B3", length: 1},
-
-    {note: "C4", length: 0.5},
-    {note: "E4", length: 0.5},
-    {note: "A4", length: 1},
-    {note: "G4#", length: 1.5},
-    {note: "REST", length: 0.5}
+    {note: "E4", length: 1},{note: "C4", length: 1},{note: "D4", length: 1},{note: "B3", length: 1},
+    {note: "C4", length: 0.5},{note: "E4", length: 0.5},{note: "A4", length: 1},{note: "G4#", length: 1.5},{note: "REST", length: 0.5}
 
 ];
 
@@ -658,7 +492,7 @@ function stopBGM() {bgmPlaying = false;clearInterval(bgmTimer);bgmTimer = null;}
 async function resumeAudio() {try {if (audioMuted)return;const ctx = getAudioContext();if (!ctx)return;if (ctx.state === "suspended") {await ctx.resume();}if (!bgmPlaying) {startBGM();}} catch (error) {console.log("音声を再開できませんでした",error);}}
 
 /* 音声設定保存 */
-function saveAudioSettings() {try {localStorage.setItem(AUDIO_SAVE_KEY,JSON.stringify({bgmVolume:bgmVolume,seVolume:seVolume}));} catch (error) {console.log("音声設定の保存に失敗しました",error);}}
+function saveAudioSettings() {try {localStorage.setItem(AUDIO_SAVE_KEY,JSON.stringify({bgmVolume,seVolume}));} catch (error) {console.log("音声設定の保存に失敗しました",error);}}
 
 /* 音声設定読み込み */
 function loadAudioSettings() {try {const saved = localStorage.getItem(AUDIO_SAVE_KEY);if (saved) {const data = JSON.parse(saved);if (typeof data.bgmVolume === "number") {bgmVolume = Math.max(0,Math.min(1,data.bgmVolume));}if (typeof data.seVolume === "number") {seVolume = Math.max(0,Math.min(1,data.seVolume));}}} catch (error) {console.log("音声設定の読み込みに失敗しました",error);}updateAudioControls();}
@@ -743,8 +577,7 @@ function playPerfectClearEffect(chain) {
         const now = ctx.currentTime;
         const frequencies = [1046,1174,1318,1396,1568,1760,1975,2093,2349];
         frequencies.forEach(
-            function(
-                frequency,index) {
+            function(frequency,index) {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 const startTime = now + index * 0.07;
